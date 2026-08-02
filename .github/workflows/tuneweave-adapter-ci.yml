@@ -1,0 +1,49 @@
+name: TuneWeave Adapter CI
+
+on:
+  push:
+    branches:
+      - agent/tuneweave-native-provider
+  pull_request:
+    branches:
+      - dev
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tuneweave-adapter-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Prettier
+        run: pnpm prettier --check .
+
+      - name: ESLint
+        run: pnpm lint
+
+      - name: TypeScript
+        run: pnpm typecheck
+        env:
+          SKIP_NATIVE_BUILD: true
+
+      - name: Tests
+        run: pnpm test
+        env:
+          SKIP_NATIVE_BUILD: true

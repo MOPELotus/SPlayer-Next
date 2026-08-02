@@ -11,7 +11,7 @@ export interface CommentSource {
   id: string;
   name: string;
   kind: CommentSourceKind;
-  platform?: "netease";
+  platform?: "netease" | "tuneweave";
   pluginId?: string;
   pluginSource?: string;
 }

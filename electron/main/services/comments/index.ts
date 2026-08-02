@@ -1,13 +1,19 @@
-import { callNetease } from "@main/apis/netease";
 import { pickBestCandidate, type LyricCandidate } from "@main/apis/common/lyric/utils";
+import { callNetease } from "@main/apis/netease";
+import { requestTuneWeave } from "@main/apis/tuneweave";
 import { pluginRegistry, type PluginRuntime } from "@main/plugins/registry";
 import { callMusicComment, callMusicSearch } from "@main/plugins/router";
 import { pluginLog } from "@main/utils/logger";
 import type { CommentSource, MusicCommentPage, MusicCommentQuery } from "@shared/types/comment";
 import type { MusicSearchCandidate } from "@shared/types/plugin";
 import type { Track } from "@shared/types/player";
-import { buildCommentSources, normalizeNeteaseCommentPage } from "./data";
+import {
+  buildCommentSources,
+  normalizeNeteaseCommentPage,
+  normalizeTuneWeaveCommentPage,
+} from "./data";
 
+const TUNEWEAVE_SOURCE_ID = "builtin:tuneweave";
 const NETEASE_SOURCE_ID = "builtin:netease";
 const NETEASE_RESOURCE_TYPE = "R_SO_4_";
 
@@ -17,12 +23,24 @@ const PLATFORM_TO_PLUGIN_SOURCE: Record<string, string> = {
   kugou: "kg",
 };
 
+const PLATFORM_TO_TUNEWEAVE: Record<string, string> = {
+  netease: "netease",
+  qqmusic: "qq",
+  kugou: "kugou",
+};
+
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
 
 interface ParsedPluginSource {
   pluginId: string;
   source: string;
+}
+
+interface TuneWeaveEnvelope<T> {
+  ok: boolean;
+  data?: T;
+  error?: { message?: string };
 }
 
 const parsePluginSource = (sourceId: string): ParsedPluginSource | null => {
@@ -46,6 +64,20 @@ const toPluginCandidate = (track: Track): MusicSearchCandidate => ({
   album: track.album?.name,
   durationMs: track.duration,
 });
+
+const tuneWeaveTrackRef = (track: Track): string | null => {
+  const extId = track.extId?.trim();
+  if (extId?.includes(":")) return extId;
+  const platform = PLATFORM_TO_TUNEWEAVE[track.source];
+  return platform && track.id ? `${platform}:${track.id}` : null;
+};
+
+const unwrapTuneWeaveData = <T>(value: unknown): T => {
+  if (!value || typeof value !== "object") throw new Error("invalid TuneWeave response");
+  const envelope = value as TuneWeaveEnvelope<T>;
+  if (!envelope.ok) throw new Error(envelope.error?.message || "TuneWeave comment request failed");
+  return envelope.data as T;
+};
 
 const findPluginMatch = async (
   rt: PluginRuntime,
@@ -95,6 +127,26 @@ const findNeteaseId = async (track: Track): Promise<string | null> => {
     }),
   );
   return pickBestCandidate(candidates, track)?.extra.id ?? null;
+};
+
+const getTuneWeaveComments = async (args: MusicCommentQuery): Promise<MusicCommentPage> => {
+  const reference = tuneWeaveTrackRef(args.track);
+  if (!reference) return { list: [], total: 0, page: args.page, limit: args.limit };
+  const response = await requestTuneWeave({
+    path: `/v1/resources/track/${encodeURIComponent(reference)}/comments`,
+    query: {
+      view: args.type === "hot" ? "hot" : "all",
+      sort: args.type === "hot" ? "hot" : "time",
+      limit: args.limit,
+      offset: (args.page - 1) * args.limit,
+    },
+  });
+  return normalizeTuneWeaveCommentPage(
+    unwrapTuneWeaveData(response),
+    args.type,
+    args.page,
+    args.limit,
+  );
 };
 
 const getNeteaseComments = async (args: MusicCommentQuery): Promise<MusicCommentPage> => {
@@ -151,6 +203,7 @@ export const getCommentSources = (): CommentSource[] =>
 /** 获取歌曲评论 */
 export const getMusicComments = async (args: MusicCommentQuery): Promise<MusicCommentPage> => {
   const query = normalizeQuery(args);
+  if (query.sourceId === TUNEWEAVE_SOURCE_ID) return getTuneWeaveComments(query);
   if (query.sourceId === NETEASE_SOURCE_ID) return getNeteaseComments(query);
   const parsed = parsePluginSource(query.sourceId);
   if (parsed) return getPluginComments(parsed, query);

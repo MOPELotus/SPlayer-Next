@@ -1,7 +1,8 @@
 import localforage from "localforage";
 import type { Track } from "@shared/types/player";
-import { fetchDailySongs } from "@/apis/recommend/netease";
+import { fetchDailySongs } from "@/apis/recommend";
 import { useUserStore } from "@/stores/user";
+import { getTuneWeavePreferences } from "@/services/tuneweave";
 
 const MAX_SEARCH_HISTORY = 20;
 /** 每日推荐归档保留天数 */
@@ -57,8 +58,8 @@ export const useDataStore = defineStore(
 
     /** 每日推荐归档 */
     let dailyArchive: DailyRecommendEntry[] = [];
-    /** 当前内存归档归属的 userId */
-    let dailyArchiveUserId: number | null = null;
+    /** 当前内存归档归属的账户身份。 */
+    let dailyArchiveOwnerKey: string | null = null;
     /** 今日每日推荐曲目 */
     const dailyRecommend = shallowRef<Track[]>([]);
     /** 历史每日推荐（不含今日，最新在前） */
@@ -75,23 +76,40 @@ export const useDataStore = defineStore(
     };
 
     /**
+     * 生成推荐缓存身份。
+     * TuneWeave 启用时不依赖 SPlayer 原网易云登录；server 模式按账户别名隔离，
+     * client/both 模式按平台会话隔离。TuneWeave 禁用时沿用网易云 userId。
+     */
+    const dailyOwnerKey = (): string | null => {
+      const tuneWeave = getTuneWeavePreferences();
+      if (tuneWeave.enabled) {
+        const accountKey =
+          tuneWeave.credentialMode === "server" ? tuneWeave.account : tuneWeave.credentialMode;
+        return `tuneweave:${tuneWeave.accountPlatform}:${accountKey}`;
+      }
+      const uid = user.profile?.userId;
+      return uid == null ? null : `netease:${uid}`;
+    };
+
+    /**
      * 取每日推荐曲目：当天已有直接返回，否则按 IndexedDB → 网络 顺序获取
-     * 缓存按 userId 分键（`daily-recommend-archive:${uid}`）
+     * 缓存按当前推荐账户身份分键。
      * 新一天的数据会把旧数据沉淀进历史归档（IndexedDB 持久化，保留近 14 天）
      * 逻辑日以 6:00 为界，失败返回空数组。各处可直接调用，已就绪时即时返回
+     * TuneWeave 启用时优先调用统一推荐端点，并按设置回退原网易云接口。
      * @param force - 强制重新拉取并覆盖当天归档
      */
     const ensureDailyRecommend = async (force = false): Promise<Track[]> => {
-      const uid = user.profile?.userId ?? null;
-      if (uid == null) return [];
-      // 用户切换 → 丢弃旧用户的内存归档，避免串数据
-      if (dailyArchiveUserId !== uid) {
+      const ownerKey = dailyOwnerKey();
+      if (!ownerKey) return [];
+      // 账户切换 → 丢弃旧账户的内存归档，避免串数据
+      if (dailyArchiveOwnerKey !== ownerKey) {
         dailyArchive = [];
-        dailyArchiveUserId = uid;
+        dailyArchiveOwnerKey = ownerKey;
         dailyRecommend.value = [];
         dailyHistory.value = [];
       }
-      const cacheKey = `daily-recommend-archive:${uid}`;
+      const cacheKey = `daily-recommend-archive:${ownerKey}`;
       const head = dailyArchive[0];
       if (!force && head?.date === todayKey() && head.tracks.length > 0) {
         return dailyRecommend.value;

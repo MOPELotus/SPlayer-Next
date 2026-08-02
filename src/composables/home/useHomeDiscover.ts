@@ -5,7 +5,7 @@ import {
   fetchRadarPlaylists,
   fetchArtists,
   fetchNewAlbums,
-} from "@/apis/recommend/netease";
+} from "@/apis/recommend";
 
 /** 首页推荐内容缓存有效期 */
 const CACHE_TTL = 30 * 60 * 1000;
@@ -34,6 +34,7 @@ const safe = (label: string, task: Promise<CoverItem[]>): Promise<CoverItem[]> =
  * 首页推荐内容
  *
  * 聚合「推荐歌单 / 雷达 / 歌手 / 新碟」四个区块，统一拉取与缓存
+ * 推荐歌单优先使用 TuneWeave，其余暂沿用现有网易云目录接口。
  * 命中缓存（30 分钟内、登录态一致）直接复用，避免重新挂载首页时重复请求
  */
 export const useHomeDiscover = () => {

@@ -1,0 +1,230 @@
+name: TuneWeave Beta
+
+on:
+  push:
+    branches:
+      - agent/tuneweave-native-provider
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tuneweave-beta-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 22.19.0
+  BETA_TAG: tuneweave-beta-1
+
+jobs:
+  live-smoke:
+    name: Live TuneWeave smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout SPlayer fork
+        uses: actions/checkout@v5
+
+      - name: Checkout pinned TuneWeave release
+        uses: actions/checkout@v5
+        with:
+          repository: MOPELotus/TuneWeave
+          ref: v0.1.0-alpha.3
+          path: .tuneweave
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache TuneWeave build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: .tuneweave -> target
+
+      - name: Install SPlayer dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build TuneWeave server
+        working-directory: .tuneweave
+        run: cargo build --release -p tuneweave-server --bin tuneweave
+
+      - name: Start TuneWeave and run SPlayer transport smoke test
+        shell: bash
+        env:
+          TUNEWEAVE_API_BASE: http://127.0.0.1:7832
+        run: |
+          set -euo pipefail
+          LOG_FILE="$RUNNER_TEMP/tuneweave-live-smoke.log"
+          ./.tuneweave/target/release/tuneweave >"$LOG_FILE" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent --show-error "$TUNEWEAVE_API_BASE/healthz" >/dev/null; then
+              break
+            fi
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+              cat "$LOG_FILE"
+              exit 1
+            fi
+            sleep 2
+          done
+
+          curl --fail --silent --show-error "$TUNEWEAVE_API_BASE/healthz" >/dev/null
+          pnpm tsx scripts/tuneweave-live-smoke.ts | tee "$RUNNER_TEMP/splayer-live-smoke.json"
+
+      - name: Upload live smoke logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: TuneWeave-Live-Smoke-Logs
+          path: |
+            ${{ runner.temp }}/tuneweave-live-smoke.log
+            ${{ runner.temp }}/splayer-live-smoke.json
+          if-no-files-found: ignore
+
+  windows-beta:
+    name: Build and launch Windows beta
+    needs: live-smoke
+    runs-on: windows-latest
+    timeout-minutes: 50
+    steps:
+      - name: Checkout SPlayer fork
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache native modules
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            native/audio-engine -> target
+            native/media-ctrl -> target
+            native/taskbar-lyric -> target
+            native/taskbar-thumbnail -> target
+
+      - name: Remove local npm mirror configuration
+        shell: bash
+        run: rm -f .npmrc
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate source
+        shell: bash
+        env:
+          SKIP_NATIVE_BUILD: true
+        run: |
+          pnpm prettier --check .
+          pnpm lint
+          pnpm typecheck
+          pnpm test
+
+      - name: Build application
+        run: pnpm build
+
+      - name: Generate license notice
+        run: pnpm exec tsx scripts/gen-license.ts
+
+      - name: Package Windows x64 beta
+        shell: bash
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >-
+          pnpm exec electron-builder
+          --config electron-builder.tuneweave-beta.config.ts
+          --win --x64 --publish never
+
+      - name: Launch packaged application
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem "dist/tuneweave-beta" -Recurse -File -Filter "SPlayer-Next-TuneWeave-Beta.exe" |
+            Where-Object { $_.FullName -match "win-unpacked" } |
+            Select-Object -First 1
+          if (-not $exe) {
+            throw "Unpacked beta executable was not produced"
+          }
+
+          $process = Start-Process -FilePath $exe.FullName -ArgumentList "--disable-gpu" -PassThru
+          Start-Sleep -Seconds 20
+          if ($process.HasExited) {
+            throw "Packaged application exited during startup smoke test with code $($process.ExitCode)"
+          }
+          Stop-Process -Id $process.Id -Force
+
+      - name: Write SHA-256 checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem "dist/tuneweave-beta" -File -Filter "*.exe" |
+            ForEach-Object {
+              $hash = Get-FileHash $_.FullName -Algorithm SHA256
+              "$($hash.Hash.ToLower())  $($_.Name)"
+            } | Set-Content "dist/tuneweave-beta/SHA256SUMS.txt" -Encoding ascii
+
+      - name: Upload Windows beta
+        uses: actions/upload-artifact@v7
+        with:
+          name: SPlayer-Next-TuneWeave-Beta-Windows-x64
+          path: |
+            dist/tuneweave-beta/*.exe
+            dist/tuneweave-beta/SHA256SUMS.txt
+          if-no-files-found: error
+
+  publish-beta:
+    name: Publish beta pre-release
+    needs: windows-beta
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Download Windows beta
+        uses: actions/download-artifact@v8
+        with:
+          name: SPlayer-Next-TuneWeave-Beta-Windows-x64
+          path: release-assets
+
+      - name: Move beta tag to validated commit
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag --force "$BETA_TAG" "$GITHUB_SHA"
+          git push origin "refs/tags/$BETA_TAG" --force
+
+      - name: Publish GitHub pre-release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$BETA_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release delete "$BETA_TAG" --repo "$GITHUB_REPOSITORY" --yes
+          fi
+          gh release create "$BETA_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "SPlayer Next TuneWeave Beta 1" \
+            --prerelease \
+            --notes "TuneWeave native backend beta. Includes unified search/playback/lyrics, login, Uni Playlist, account history/favorites, and TuneWeave cloud browsing/playback. Live smoke tests use TuneWeave v0.1.0-alpha.3; real account data still depends on the tester's configured platform account." \
+            release-assets/*

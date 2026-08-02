@@ -58,6 +58,21 @@ const router = createRouter({
           component: () => import("@/pages/Cloud.vue"),
         },
         {
+          path: "tuneweave-library",
+          name: "tuneweave-library",
+          component: () => import("@/pages/TuneWeaveLibrary.vue"),
+        },
+        {
+          path: "uni-playlists",
+          name: "uni-playlists",
+          component: () => import("@/pages/UniPlaylists.vue"),
+        },
+        {
+          path: "tuneweave-api",
+          name: "tuneweave-api",
+          component: () => import("@/pages/TuneWeaveApiConsole.vue"),
+        },
+        {
           path: "collection/:source/:type/:id",
           name: "collection",
           component: () => import("@/pages/Collection.vue"),

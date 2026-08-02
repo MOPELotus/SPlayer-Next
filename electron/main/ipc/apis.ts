@@ -12,9 +12,36 @@ import { NeteaseRequestError } from "@main/apis/netease/core/request";
 import { cookieToJson } from "@main/apis/netease/core/cookie";
 import { callQQMusic } from "@main/apis/qqmusic";
 import { callKugou } from "@main/apis/kugou";
+import {
+  callTuneWeave,
+  clearTuneWeaveCredentials,
+  TuneWeaveRequestError,
+} from "@main/apis/tuneweave";
 import { openNeteaseLoginWindow } from "@main/window/login";
 import { coreLog } from "@main/utils/logger";
 import type { ApiPlatform } from "@shared/types/apis";
+
+const FORBIDDEN_TUNEWEAVE_RENDERER_HEADERS = new Set([
+  "authorization",
+  "connection",
+  "content-length",
+  "cookie",
+  "host",
+  "proxy-authorization",
+  "transfer-encoding",
+  "x-tuneweave-credential",
+]);
+
+const validateTuneWeaveCall = (name: string, params: Record<string, unknown>): void => {
+  if (name !== "request") return;
+  const headers = params.headers;
+  if (!headers || typeof headers !== "object" || Array.isArray(headers)) return;
+  for (const key of Object.keys(headers as Record<string, unknown>)) {
+    if (FORBIDDEN_TUNEWEAVE_RENDERER_HEADERS.has(key.toLowerCase())) {
+      throw new Error(`renderer cannot set protected TuneWeave header: ${key}`);
+    }
+  }
+};
 
 /** 各平台的调用器：统一返回 `{ status?, body?, data? }` 由前端按需取 */
 const dispatch = async (
@@ -35,6 +62,11 @@ const dispatch = async (
       const data = await callKugou(name, params);
       return { data };
     }
+    case "tuneweave": {
+      validateTuneWeaveCall(name, params);
+      const data = await callTuneWeave(name, params);
+      return { data };
+    }
     default:
       throw new Error(`unknown platform: ${platform}`);
   }
@@ -48,8 +80,8 @@ export const registerApisIpc = (): void => {
         const result = await dispatch(platform, name, params ?? {});
         return { ok: true, ...result };
       } catch (err) {
-        coreLog.warn(`[apis] ${platform}.${name} failed:`, err);
         if (platform === "netease" && err instanceof NeteaseRequestError) {
+          coreLog.warn(`[apis] ${platform}.${name} failed: ${err.message}`);
           return {
             ok: false,
             error: err.message,
@@ -57,6 +89,17 @@ export const registerApisIpc = (): void => {
             body: err.response.body,
           };
         }
+        if (platform === "tuneweave" && err instanceof TuneWeaveRequestError) {
+          // 不将认证事务、凭证或平台响应体写入日志。
+          coreLog.warn(`[apis] ${platform}.${name} failed: ${err.message}`);
+          return {
+            ok: false,
+            error: err.message,
+            status: err.status,
+            body: err.body,
+          };
+        }
+        coreLog.warn(`[apis] ${platform}.${name} failed:`, err);
         return { ok: false, error: err instanceof Error ? err.message : String(err) };
       }
     },
@@ -64,6 +107,7 @@ export const registerApisIpc = (): void => {
 
   ipcMain.handle("apis:clearSession", (_evt, platform: ApiPlatform) => {
     if (platform === "netease") clearNeteaseCookies();
+    if (platform === "tuneweave") clearTuneWeaveCredentials();
   });
 
   // 打开 NCM 官方网页登录，成功后把 cookies 合并写入 session

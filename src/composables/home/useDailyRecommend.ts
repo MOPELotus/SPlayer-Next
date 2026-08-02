@@ -1,6 +1,7 @@
 import type { Track } from "@shared/types/player";
 import { useUserStore } from "@/stores/user";
 import { useDataStore } from "@/stores/data";
+import { getTuneWeavePreferences } from "@/services/tuneweave";
 import { toast } from "@/composables/useToast";
 import * as player from "@/core/player";
 
@@ -97,7 +98,7 @@ export const useDailyRecommend = () => {
   const load = async (): Promise<void> => {
     loading.value = true;
     const kinds: HeroKind[] = ["local"];
-    if (user.isLoggedIn) kinds.push("daily");
+    if (user.isLoggedIn || getTuneWeavePreferences().enabled) kinds.push("daily");
     if (user.likedPlaylistTracks.length > 0) kinds.push("liked");
     const start = randomIndex(kinds.length);
     for (let offset = 0; offset < kinds.length; offset++) {

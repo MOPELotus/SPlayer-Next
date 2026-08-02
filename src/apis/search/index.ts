@@ -9,6 +9,8 @@ import type { Platform } from "@shared/types/platform";
 import * as netease from "./netease";
 import * as qqmusic from "./qqmusic";
 import * as kugou from "./kugou";
+import * as tuneweave from "./tuneweave";
+import { getTuneWeavePreferences } from "@/services/tuneweave";
 
 /** 搜索结果通用 */
 export interface SearchResult<T> {
@@ -21,8 +23,7 @@ const unsupported = (platform: Platform, category: string): never => {
   throw new Error(`Search not yet supported: ${platform}.${category}`);
 };
 
-/** 搜索单曲 */
-export const searchSongs = (
+const builtInSongs = (
   platform: Platform,
   keyword: string,
   offset: number,
@@ -34,8 +35,7 @@ export const searchSongs = (
   return unsupported(platform, "songs");
 };
 
-/** 搜索专辑 */
-export const searchAlbums = (
+const builtInAlbums = (
   platform: Platform,
   keyword: string,
   offset: number,
@@ -47,8 +47,7 @@ export const searchAlbums = (
   return unsupported(platform, "albums");
 };
 
-/** 搜索歌手 */
-export const searchArtists = (
+const builtInArtists = (
   platform: Platform,
   keyword: string,
   offset: number,
@@ -60,8 +59,7 @@ export const searchArtists = (
   return unsupported(platform, "artists");
 };
 
-/** 搜索歌单 */
-export const searchPlaylists = (
+const builtInPlaylists = (
   platform: Platform,
   keyword: string,
   offset: number,
@@ -72,3 +70,66 @@ export const searchPlaylists = (
   if (platform === "kugou") return kugou.playlists(keyword, offset, limit);
   return unsupported(platform, "playlists");
 };
+
+const useTuneWeave = async <T>(
+  request: () => Promise<SearchResult<T>>,
+  fallback: () => Promise<SearchResult<T>>,
+): Promise<SearchResult<T>> => {
+  const preferences = getTuneWeavePreferences();
+  if (!preferences.enabled) return fallback();
+  try {
+    return await request();
+  } catch (error) {
+    if (!preferences.fallbackToBuiltIn) throw error;
+    console.warn("[tuneweave] search failed, falling back to built-in provider", error);
+    return fallback();
+  }
+};
+
+/** 搜索单曲 */
+export const searchSongs = (
+  platform: Platform,
+  keyword: string,
+  offset: number,
+  limit: number,
+): Promise<SearchResult<Track>> =>
+  useTuneWeave(
+    () => tuneweave.songs(platform, keyword, offset, limit),
+    () => builtInSongs(platform, keyword, offset, limit),
+  );
+
+/** 搜索专辑 */
+export const searchAlbums = (
+  platform: Platform,
+  keyword: string,
+  offset: number,
+  limit: number,
+): Promise<SearchResult<CoverItem>> =>
+  useTuneWeave(
+    () => tuneweave.albums(platform, keyword, offset, limit),
+    () => builtInAlbums(platform, keyword, offset, limit),
+  );
+
+/** 搜索歌手 */
+export const searchArtists = (
+  platform: Platform,
+  keyword: string,
+  offset: number,
+  limit: number,
+): Promise<SearchResult<CoverItem>> =>
+  useTuneWeave(
+    () => tuneweave.artists(platform, keyword, offset, limit),
+    () => builtInArtists(platform, keyword, offset, limit),
+  );
+
+/** 搜索歌单 */
+export const searchPlaylists = (
+  platform: Platform,
+  keyword: string,
+  offset: number,
+  limit: number,
+): Promise<SearchResult<CoverItem>> =>
+  useTuneWeave(
+    () => tuneweave.playlists(platform, keyword, offset, limit),
+    () => builtInPlaylists(platform, keyword, offset, limit),
+  );

@@ -5,6 +5,8 @@ import { useStreamingStore } from "@/stores/streaming";
 import { useSettingsStore } from "@/stores/settings";
 import { resolveByPlugin } from "@/services/audioSource";
 import { resolveNeteaseDownloadUrl } from "@/apis/song/netease";
+import { resolveTuneWeaveUrl } from "@/apis/song/tuneweave";
+import { getTuneWeavePreferences } from "@/services/tuneweave";
 
 /** 下载源解析结果 */
 export interface DownloadSource {
@@ -36,6 +38,26 @@ export const resolveDownloadSource = async (
       return null;
     }
   }
+
+  if (isPlatform(track.source)) {
+    const preferences = getTuneWeavePreferences();
+    if (preferences.enabled) {
+      try {
+        const resolved = await resolveTuneWeaveUrl(track, level);
+        if (!resolved.isTrial) {
+          return {
+            url: resolved.url,
+            format: resolved.stream.format ?? undefined,
+            size: resolved.stream.size ?? undefined,
+          };
+        }
+      } catch (error) {
+        if (!preferences.fallbackToBuiltIn) return null;
+        console.warn("[tuneweave] download resolution failed, falling back", error);
+      }
+    }
+  }
+
   // 网易云官方接口
   if (track.source === "netease") {
     try {

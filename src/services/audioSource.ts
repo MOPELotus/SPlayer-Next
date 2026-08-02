@@ -5,6 +5,8 @@ import { useStreamingStore } from "@/stores/streaming";
 import { useSettingsStore } from "@/stores/settings";
 import { usePluginsStore } from "@/stores/plugins";
 import { resolveNeteaseUrl } from "@/apis/song/netease";
+import { resolveTuneWeaveUrl } from "@/apis/song/tuneweave";
+import { getTuneWeavePreferences } from "@/services/tuneweave";
 import { ErrorCode } from "@shared/types/errors";
 import { handleError } from "@/utils/errors";
 
@@ -36,7 +38,7 @@ const isOnlinePlatform = (source: TrackSource): source is Platform =>
 
 /**
  * 派生缓存键
- * netease 把音质档位并入键，使不同音质的同一首歌互不覆盖
+ * 在线歌曲把音质档位并入键，使不同音质的同一首歌互不覆盖
  * @param track - 要解析的 track
  * @param songLevel - 在线歌曲音质档位
  * @returns 派生缓存键，如果该 track 不参与歌曲缓存则返回 null
@@ -45,11 +47,8 @@ const cacheKeyForTrack = (track: Track, songLevel: QualityLevel): string | null 
   if (track.source === "streaming" && track.serverId && track.originalId) {
     return `s:${track.serverId}:${track.originalId}:`;
   }
-  if (track.source === "netease" && track.id) {
-    return `o:netease:${track.id}:${songLevel}`;
-  }
   if (isOnlinePlatform(track.source) && track.id) {
-    return `o:${track.source}:${track.id}:`;
+    return `o:${track.source}:${track.extId ?? track.id}:${songLevel}`;
   }
   return null;
 };
@@ -60,7 +59,7 @@ export type OnlineResolveResult =
       ok: true;
       url: string;
       isTrial: boolean;
-      provider: "official" | "plugin" | "trial";
+      provider: "tuneweave" | "official" | "plugin" | "trial";
       pluginId?: string;
     }
   | { ok: false; errorCode: ErrorCode };
@@ -141,7 +140,7 @@ export const resolveByPlugin = async (
 /**
  * 解析在线音频源 URL
  * @param track - 要解析的 track
- * @param songLevel - 在线歌曲音质档位（仅网易云官方接口生效）
+ * @param songLevel - 在线歌曲音质档位
  */
 const resolveOnlineUrl = async (
   track: Track,
@@ -149,18 +148,41 @@ const resolveOnlineUrl = async (
   options: ResolveTrackSourceOptions = {},
 ): Promise<OnlineResolveResult> => {
   const settings = useSettingsStore();
+  const tuneWeavePreferences = getTuneWeavePreferences();
   let trialUrl: string | null = null;
-  try {
-    if (track.source === "netease" && !options.skipOfficialOnline) {
-      const resolved = await resolveNeteaseUrl(track, songLevel);
-      if (resolved && !resolved.isTrial) {
-        return { ok: true, url: resolved.url, isTrial: false, provider: "official" };
+
+  if (tuneWeavePreferences.enabled && !options.skipOfficialOnline) {
+    try {
+      const resolved = await resolveTuneWeaveUrl(track, songLevel);
+      if (!resolved.isTrial) {
+        return {
+          ok: true,
+          url: resolved.url,
+          isTrial: false,
+          provider: "tuneweave",
+        };
       }
-      if (resolved?.isTrial) trialUrl = resolved.url;
+      trialUrl = resolved.url;
+    } catch (error) {
+      if (!tuneWeavePreferences.fallbackToBuiltIn) throw error;
+      console.warn("[tuneweave] playback resolution failed, falling back", error);
     }
-  } catch {
-    // 官方 API 异常回落插件
   }
+
+  if (!tuneWeavePreferences.enabled || tuneWeavePreferences.fallbackToBuiltIn) {
+    try {
+      if (track.source === "netease" && !options.skipOfficialOnline) {
+        const resolved = await resolveNeteaseUrl(track, songLevel);
+        if (resolved && !resolved.isTrial) {
+          return { ok: true, url: resolved.url, isTrial: false, provider: "official" };
+        }
+        if (resolved?.isTrial) trialUrl = resolved.url;
+      }
+    } catch {
+      // 官方 API 异常回落插件
+    }
+  }
+
   const pluginResolved = await resolveByPlugin(track, "hq", options.skipPluginIds ?? []);
   if (pluginResolved.ok || !trialUrl || !settings.player.allowTrialPlay) return pluginResolved;
   return { ok: true, url: trialUrl, isTrial: true, provider: "trial" };
@@ -174,7 +196,7 @@ const resolveOnlineUrl = async (
 export interface ResolvedTrackSource {
   source: string;
   fromCache: boolean;
-  provider: "local" | "cache" | "streaming" | "official" | "plugin" | "trial";
+  provider: "local" | "cache" | "streaming" | "tuneweave" | "official" | "plugin" | "trial";
   pluginId?: string;
   cacheRequest?: () => Promise<void>;
 }
