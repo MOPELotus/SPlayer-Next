@@ -45,19 +45,19 @@ export const getTuneWeaveStatus = (): Promise<TuneWeaveRuntimeStatus> => invoke(
 
 export const checkTuneWeaveHealth = (): Promise<unknown> => invoke("health");
 
-/** 调用任意 TuneWeave HTTP API，返回完整统一包络。 */
-export const tuneweaveRequest = <T>(request: TuneWeaveRequest): Promise<TuneWeaveEnvelope<T>> =>
+/** 调用任意 TuneWeave HTTP API，保留 JSON、文本或二进制原始响应。 */
+export const tuneweaveRawRequest = <T>(request: TuneWeaveRequest): Promise<T> =>
   invoke("request", request as unknown as Record<string, unknown>);
+
+/** 调用标准业务 API，返回完整统一 JSON 包络。 */
+export const tuneweaveRequest = <T>(request: TuneWeaveRequest): Promise<TuneWeaveEnvelope<T>> =>
+  tuneweaveRawRequest<TuneWeaveEnvelope<T>>(request);
 
 /** 调用业务 API 并直接取 data；统一错误包络会转为异常。 */
 export const tuneweaveData = async <T>(request: TuneWeaveRequest): Promise<T> => {
   const envelope = await tuneweaveRequest<T>(request);
   if (!envelope.ok) {
-    throw new TuneWeaveApiError(
-      envelope.error.message,
-      undefined,
-      envelope,
-    );
+    throw new TuneWeaveApiError(envelope.error.message, undefined, envelope);
   }
   return envelope.data;
 };
