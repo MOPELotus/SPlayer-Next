@@ -24,6 +24,7 @@ const session = shallowRef<TuneWeaveSession | null>(null);
 const playlistCount = ref<number | null>(null);
 const favoriteCount = ref<number | null>(null);
 const errorMessage = ref("");
+const preferences = ref(getTuneWeavePreferences());
 
 const pickString = (value: unknown, keys: string[]): string => {
   if (!value || typeof value !== "object") return "";
@@ -51,7 +52,6 @@ const pickBoolean = (value: unknown, keys: string[]): boolean | null => {
   return null;
 };
 
-const preferences = computed(getTuneWeavePreferences);
 const displayName = computed(
   () =>
     pickString(profile.value, ["nickname", "display_name", "name", "username"]) ||
@@ -79,6 +79,7 @@ const membershipText = computed(
 );
 
 const loadAccount = async (): Promise<void> => {
+  preferences.value = getTuneWeavePreferences();
   loading.value = true;
   errorMessage.value = "";
   try {
@@ -144,8 +145,19 @@ const logout = async (): Promise<void> => {
   }
 };
 
-onMounted(() => {
+const handleAccountChanged = (): void => {
   void loadAccount();
+};
+
+onMounted(() => {
+  window.addEventListener("tuneweave:account-changed", handleAccountChanged);
+  window.addEventListener("tuneweave:preferences-changed", handleAccountChanged);
+  void loadAccount();
+});
+
+onScopeDispose(() => {
+  window.removeEventListener("tuneweave:account-changed", handleAccountChanged);
+  window.removeEventListener("tuneweave:preferences-changed", handleAccountChanged);
 });
 </script>
 
