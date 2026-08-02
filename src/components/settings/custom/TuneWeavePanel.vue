@@ -3,13 +3,12 @@ import { renderSVG } from "uqr";
 import type { TuneWeaveQrTransaction } from "@shared/types/tuneweave";
 import {
   checkTuneWeaveHealth,
+  clearTuneWeaveCredentials,
   getTuneWeaveStatus,
   tuneweaveData,
 } from "@/apis/tuneweave";
 import {
-  addTuneWeaveCredential,
   ensureTuneWeaveConfigured,
-  getTuneWeaveCredentials,
   getTuneWeavePreferences,
   setTuneWeavePreferences,
   type TuneWeaveCredentialMode,
@@ -21,7 +20,7 @@ defineOptions({ inheritAttrs: false });
 const form = reactive(getTuneWeavePreferences());
 const testing = ref(false);
 const connected = ref(false);
-const credentialCount = ref(getTuneWeaveCredentials().length);
+const credentialCount = ref(0);
 
 const qrOpen = ref(false);
 const qrLoading = ref(false);
@@ -44,16 +43,13 @@ const readString = (value: unknown, keys: string[]): string => {
   return "";
 };
 
-const readCredential = (value: unknown): string => {
-  if (!value || typeof value !== "object") return "";
-  const record = value as Record<string, unknown>;
-  const credential = record.caller_credential;
-  if (typeof credential === "string") return credential;
-  if (credential && typeof credential === "object") {
-    const raw = (credential as Record<string, unknown>).value;
-    if (typeof raw === "string") return raw;
-  }
-  return "";
+const credentialWasStored = (transaction: TuneWeaveQrTransaction): boolean => {
+  const credential = transaction.caller_credential;
+  return Boolean(
+    credential &&
+      typeof credential === "object" &&
+      (credential as Record<string, unknown>).stored === true,
+  );
 };
 
 const renderQr = (transaction: TuneWeaveQrTransaction): void => {
@@ -85,6 +81,11 @@ const renderQr = (transaction: TuneWeaveQrTransaction): void => {
   qrImage.value = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 };
 
+const refreshStatus = async (): Promise<void> => {
+  const status = await getTuneWeaveStatus();
+  credentialCount.value = status.credentialCount;
+};
+
 const persist = async (): Promise<void> => {
   const next = setTuneWeavePreferences({
     enabled: form.enabled,
@@ -105,9 +106,8 @@ const testConnection = async (): Promise<void> => {
   try {
     await persist();
     await checkTuneWeaveHealth();
-    const status = await getTuneWeaveStatus();
+    await refreshStatus();
     connected.value = true;
-    credentialCount.value = status.credentialCount;
     toast.success("TuneWeave 连接正常");
   } catch (error) {
     connected.value = false;
@@ -117,19 +117,20 @@ const testConnection = async (): Promise<void> => {
   }
 };
 
+const clearCredentials = async (): Promise<void> => {
+  await clearTuneWeaveCredentials();
+  await refreshStatus();
+  toast.success("已清除本次应用会话中的 TuneWeave 调用方凭证");
+};
+
 const applyQrResult = async (transaction: TuneWeaveQrTransaction): Promise<void> => {
   qrStatus.value = String(transaction.status ?? qrStatus.value);
   renderQr(transaction);
-  const credential = readCredential(transaction);
-  if (credential) {
-    addTuneWeaveCredential(credential);
-    await ensureTuneWeaveConfigured();
-    credentialCount.value = getTuneWeaveCredentials().length;
-  }
+  await refreshStatus();
   if (qrStatus.value === "confirmed") {
     pausePolling();
-    qrMessage.value = credential
-      ? "登录成功，调用方凭证仅保存在本次应用会话中"
+    qrMessage.value = credentialWasStored(transaction)
+      ? "登录成功，调用方凭证已由主进程安全保存在内存中"
       : "登录成功，登录态已由 TuneWeave 服务器托管";
     toast.success("TuneWeave 登录成功");
   } else if (qrStatus.value === "scanned") {
@@ -211,12 +212,7 @@ watch(qrOpen, (open) => {
 });
 
 onMounted(() => {
-  void ensureTuneWeaveConfigured()
-    .then(() => getTuneWeaveStatus())
-    .then((status) => {
-      credentialCount.value = status.credentialCount;
-    })
-    .catch(() => {});
+  void ensureTuneWeaveConfigured().then(refreshStatus).catch(() => {});
 });
 
 onScopeDispose(pausePolling);
@@ -231,7 +227,7 @@ onScopeDispose(pausePolling);
         <div class="min-w-0">
           <div class="text-sm font-semibold text-on-surface">TuneWeave 原生后端</div>
           <div class="text-xs text-on-surface-variant/60 mt-0.5">
-            搜索、播放与歌词优先经 TuneWeave；调用方凭证不写入常规设置文件
+            搜索、播放、下载与歌词优先经 TuneWeave；调用方凭证仅驻留主进程内存
           </div>
         </div>
         <SSwitch v-model="form.enabled" @update:model-value="persist" />
@@ -273,9 +269,19 @@ onScopeDispose(pausePolling);
 
       <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
         <div class="text-xs text-on-surface-variant/70">
-          {{ connected ? "连接正常" : "尚未验证连接" }} · 会话凭证 {{ credentialCount }} 份
+          {{ connected ? "连接正常" : "尚未验证连接" }} · 主进程会话凭证
+          {{ credentialCount }} 份
         </div>
         <div class="flex items-center gap-2">
+          <SButton
+            v-if="credentialCount > 0"
+            variant="secondary"
+            size="small"
+            type="error"
+            @click="clearCredentials"
+          >
+            清除凭证
+          </SButton>
           <SButton variant="secondary" size="small" :disabled="testing" @click="testConnection">
             <template #icon><SLoading v-if="testing" class="size-4" /></template>
             测试连接
