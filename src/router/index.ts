@@ -58,6 +58,11 @@ const router = createRouter({
           component: () => import("@/pages/Cloud.vue"),
         },
         {
+          path: "uni-playlists",
+          name: "uni-playlists",
+          component: () => import("@/pages/UniPlaylists.vue"),
+        },
+        {
           path: "collection/:source/:type/:id",
           name: "collection",
           component: () => import("@/pages/Collection.vue"),
