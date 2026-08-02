@@ -14,6 +14,10 @@ import type {
   TuneWeaveRuntimeConfig,
   TuneWeaveRuntimeStatus,
 } from "@shared/types/tuneweave";
+import {
+  applyTuneWeaveBodyHeaders,
+  encodeTuneWeaveRequestBody,
+} from "./body";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:7832";
 const MAX_CREDENTIALS = 8;
@@ -104,9 +108,6 @@ let mediaProxyStarting: Promise<number> | null = null;
 const appendHeader = (headers: string[], name: string, value: string): void => {
   headers.push(name, value);
 };
-
-const hasHeader = (headers: Record<string, string> | undefined, name: string): boolean =>
-  Object.keys(headers ?? {}).some((key) => key.toLowerCase() === name.toLowerCase());
 
 const parseResponseBody = async (
   response: Awaited<ReturnType<typeof undiciRequest>>,
@@ -207,13 +208,8 @@ export const requestTuneWeave = async (input: TuneWeaveRequest): Promise<unknown
     }
   }
 
-  let body: string | undefined;
-  if (input.body !== undefined && method !== "GET" && method !== "HEAD") {
-    body = JSON.stringify(input.body);
-    if (!hasHeader(input.headers, "content-type")) {
-      appendHeader(headers, "Content-Type", "application/json; charset=utf-8");
-    }
-  }
+  const body = encodeTuneWeaveRequestBody(input);
+  applyTuneWeaveBodyHeaders(input, (name, value) => appendHeader(headers, name, value));
 
   let response: Awaited<ReturnType<typeof undiciRequest>>;
   try {
