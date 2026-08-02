@@ -47,7 +47,7 @@ export const refreshTuneWeaveSession = async (): Promise<TuneWeaveSession> =>
   tuneweaveData<TuneWeaveSession>({
     method: "POST",
     path: "/v1/auth/session/refresh",
-    body: await selectedQuery(),
+    query: await selectedQuery(),
   });
 
 export const logoutTuneWeaveSession = async (): Promise<void> => {
