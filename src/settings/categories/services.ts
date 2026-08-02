@@ -4,12 +4,26 @@ import { toast } from "@/composables/useToast";
 import i18n from "@/i18n";
 import ExternalApiStatusCard from "@/components/settings/custom/ExternalApiStatusCard.vue";
 import LastfmPanel from "@/components/settings/custom/LastfmPanel.vue";
+import TuneWeavePanel from "@/components/settings/custom/TuneWeavePanel.vue";
 import IconLucideGlobe from "~icons/lucide/globe";
 
 const servicesCategory: SettingCategory = {
   id: "services",
   icon: IconLucideGlobe,
   sections: [
+    {
+      id: "tuneweave",
+      tag: { text: "Native" },
+      items: [
+        {
+          key: "tuneweavePanel",
+          type: "custom",
+          component: TuneWeavePanel,
+          fullWidth: true,
+          searchable: false,
+        },
+      ],
+    },
     {
       id: "network",
       items: [
