@@ -5,6 +5,7 @@ export type TuneWeaveCredentialMode = "server" | "client" | "both";
 export interface TuneWeavePreferences {
   enabled: boolean;
   baseUrl: string;
+  accountPlatform: string;
   account: string;
   credentialMode: TuneWeaveCredentialMode;
   fallbackToBuiltIn: boolean;
@@ -18,6 +19,7 @@ const PREFERENCES_KEY = "splayer:tuneweave:preferences:v1";
 export const DEFAULT_TUNEWEAVE_PREFERENCES: TuneWeavePreferences = {
   enabled: true,
   baseUrl: "http://127.0.0.1:7832",
+  accountPlatform: "netease",
   account: "default",
   credentialMode: "server",
   fallbackToBuiltIn: true,
@@ -58,6 +60,10 @@ const normalizePreferences = (input: Record<string, unknown>): TuneWeavePreferen
       typeof input.baseUrl === "string" && input.baseUrl.trim()
         ? input.baseUrl.trim()
         : DEFAULT_TUNEWEAVE_PREFERENCES.baseUrl,
+    accountPlatform:
+      typeof input.accountPlatform === "string" && input.accountPlatform.trim()
+        ? input.accountPlatform.trim()
+        : DEFAULT_TUNEWEAVE_PREFERENCES.accountPlatform,
     account:
       typeof input.account === "string" && input.account.trim()
         ? input.account.trim()
@@ -109,3 +115,10 @@ export const tuneWeaveAccountQuery = (
   preferences: TuneWeavePreferences,
 ): { account?: string } =>
   preferences.credentialMode === "server" ? { account: preferences.account } : {};
+
+export const tuneWeaveSelectedAccountQuery = (
+  preferences: TuneWeavePreferences,
+): { platform: string; account?: string } => ({
+  platform: preferences.accountPlatform,
+  ...tuneWeaveAccountQuery(preferences),
+});
