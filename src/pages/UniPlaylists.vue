@@ -294,7 +294,9 @@ onMounted(() => {
             </div>
           </header>
 
-          <div class="rounded-xl bg-surface-panel border border-solid border-outline-variant/15 p-3">
+          <div
+            class="rounded-xl bg-surface-panel border border-solid border-outline-variant/15 p-3"
+          >
             <div class="flex items-center gap-2">
               <select
                 v-model="addKind"
@@ -324,7 +326,9 @@ onMounted(() => {
               :key="item.item_id"
               class="group flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-on-surface/5"
             >
-              <span class="w-7 shrink-0 text-center text-xs tabular-nums text-on-surface-variant/40">
+              <span
+                class="w-7 shrink-0 text-center text-xs tabular-nums text-on-surface-variant/40"
+              >
                 {{ String(index + 1).padStart(2, "0") }}
               </span>
               <div
@@ -339,7 +343,9 @@ onMounted(() => {
                 <IconLucideMusic2 v-else class="size-5 text-on-surface-variant/45" />
               </div>
               <div class="min-w-0 flex-1">
-                <div class="truncate text-sm font-medium text-on-surface">{{ itemTitle(item) }}</div>
+                <div class="truncate text-sm font-medium text-on-surface">
+                  {{ itemTitle(item) }}
+                </div>
                 <div class="mt-0.5 truncate text-xs text-on-surface-variant/50">
                   {{ itemSubtitle(item) }}
                 </div>

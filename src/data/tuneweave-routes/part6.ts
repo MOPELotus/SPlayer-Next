@@ -16,8 +16,16 @@ export const routesPart6: TuneWeaveRouteDefinition[] = [
   { method: "GET", path: "/v1/tracks/{reference}/labels", category: "tracks" },
   { method: "GET", path: "/v1/tracks/{reference}/lyrics", category: "tracks" },
   { method: "GET", path: "/v1/tracks/{reference}/lyrics/ai-dictionary", category: "tracks" },
-  { method: "GET", path: "/v1/tracks/{reference}/lyrics/ai-dictionary/availability", category: "tracks" },
-  { method: "GET", path: "/v1/tracks/{reference}/lyrics/singing-annotations/availability", category: "tracks" },
+  {
+    method: "GET",
+    path: "/v1/tracks/{reference}/lyrics/ai-dictionary/availability",
+    category: "tracks",
+  },
+  {
+    method: "GET",
+    path: "/v1/tracks/{reference}/lyrics/singing-annotations/availability",
+    category: "tracks",
+  },
   { method: "GET", path: "/v1/tracks/{reference}/lyrics/translations/styles", category: "tracks" },
   { method: "GET", path: "/v1/tracks/{reference}/related-playlists", category: "tracks" },
   { method: "GET", path: "/v1/tracks/{reference}/related-videos", category: "tracks" },

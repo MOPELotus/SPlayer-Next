@@ -28,16 +28,10 @@ const preferTuneWeave = async <T>(
 };
 
 export const fetchDailySongs = (): Promise<Track[]> =>
-  preferTuneWeave(
-    () => fetchTuneWeaveRecommendedTracks(50),
-    fetchNeteaseDailySongs,
-  );
+  preferTuneWeave(() => fetchTuneWeaveRecommendedTracks(50), fetchNeteaseDailySongs);
 
 export const fetchPersonalFm = (): Promise<Track[]> =>
-  preferTuneWeave(
-    () => fetchTuneWeavePersonalFm(30),
-    fetchNeteasePersonalFm,
-  );
+  preferTuneWeave(() => fetchTuneWeavePersonalFm(30), fetchNeteasePersonalFm);
 
 export const fetchRecommendPlaylists = (loggedIn: boolean): Promise<CoverItem[]> =>
   preferTuneWeave(

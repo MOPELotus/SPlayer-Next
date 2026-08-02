@@ -3,10 +3,7 @@ import type { LyricFormat, LyricMatchResult } from "@shared/types/lyrics";
 import type { Platform } from "@shared/types/platform";
 import type { TuneWeaveLyrics } from "@shared/types/tuneweave";
 import { tuneweaveData } from "@/apis/tuneweave";
-import {
-  ensureTuneWeaveConfigured,
-  tuneWeaveAccountQuery,
-} from "@/services/tuneweave";
+import { ensureTuneWeaveConfigured, tuneWeaveAccountQuery } from "@/services/tuneweave";
 import { canonicalTuneWeaveTrackRef } from "@/utils/format/tuneweave";
 import { detectFormat } from "@/utils/lyric/parse";
 

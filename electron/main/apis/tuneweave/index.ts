@@ -1,10 +1,5 @@
 import { randomBytes } from "node:crypto";
-import {
-  createServer,
-  type IncomingMessage,
-  type Server,
-  type ServerResponse,
-} from "node:http";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { request as undiciRequest, type Dispatcher } from "undici";
 import type {
@@ -14,14 +9,8 @@ import type {
   TuneWeaveRuntimeConfig,
   TuneWeaveRuntimeStatus,
 } from "@shared/types/tuneweave";
-import {
-  applyTuneWeaveBodyHeaders,
-  encodeTuneWeaveRequestBody,
-} from "./body";
-import {
-  isTuneWeaveBinaryResponse,
-  parseTuneWeaveResponseBody,
-} from "./response";
+import { applyTuneWeaveBodyHeaders, encodeTuneWeaveRequestBody } from "./body";
+import { isTuneWeaveBinaryResponse, parseTuneWeaveResponseBody } from "./response";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:7832";
 const MAX_CREDENTIALS = 8;
@@ -115,9 +104,7 @@ const appendHeader = (headers: string[], name: string, value: string): void => {
 
 const storeCallerCredential = (credential: unknown): boolean => {
   const record =
-    credential && typeof credential === "object"
-      ? (credential as Record<string, unknown>)
-      : null;
+    credential && typeof credential === "object" ? (credential as Record<string, unknown>) : null;
   const value =
     typeof credential === "string"
       ? credential.trim()
@@ -141,10 +128,7 @@ const storeCallerCredential = (credential: unknown): boolean => {
  * caller_credential 的 secret 在主进程截获，渲染进程只收到非敏感元数据。
  * 该函数同时递归处理统一包络中的 data 字段。
  */
-export const sanitizeTuneWeaveResponse = (
-  value: unknown,
-  captureCredentials = true,
-): unknown => {
+export const sanitizeTuneWeaveResponse = (value: unknown, captureCredentials = true): unknown => {
   if (
     isTuneWeaveBinaryResponse(value) ||
     value instanceof ArrayBuffer ||

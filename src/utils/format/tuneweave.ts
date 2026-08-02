@@ -25,8 +25,7 @@ const TUNEWEAVE_TO_PLATFORM: Record<string, Platform> = {
 const isPlatform = (source: TrackSource): source is Platform =>
   source === "netease" || source === "qqmusic" || source === "kugou";
 
-export const toTuneWeavePlatform = (platform: Platform): string =>
-  PLATFORM_TO_TUNEWEAVE[platform];
+export const toTuneWeavePlatform = (platform: Platform): string => PLATFORM_TO_TUNEWEAVE[platform];
 
 export const fromTuneWeavePlatform = (
   platform: string | null | undefined,
@@ -89,20 +88,14 @@ export const extractTuneWeaveResources = <T>(payload: unknown, expectedType: str
   const result: T[] = [];
   for (const array of arrays) {
     for (const item of array) {
-      const unwrapped = unwrapTuneWeaveResource(
-        item as T | TuneWeaveResource<T>,
-        expectedType,
-      );
+      const unwrapped = unwrapTuneWeaveResource(item as T | TuneWeaveResource<T>, expectedType);
       if (unwrapped && typeof unwrapped === "object") result.push(unwrapped);
     }
   }
   return result;
 };
 
-export const tuneWeaveTrackToTrack = (
-  track: TuneWeaveTrack,
-  fallbackPlatform: Platform,
-): Track => {
+export const tuneWeaveTrackToTrack = (track: TuneWeaveTrack, fallbackPlatform: Platform): Track => {
   const platform = fromTuneWeavePlatform(track.platform, fallbackPlatform);
   const cover = track.album?.cover_url ?? undefined;
   return {
@@ -123,7 +116,10 @@ export const tuneWeaveTrackToTrack = (
           cover,
           artist:
             track.album.artist ??
-            track.album.artists?.map((artist) => artist.name).filter(Boolean).join(" / "),
+            track.album.artists
+              ?.map((artist) => artist.name)
+              .filter(Boolean)
+              .join(" / "),
           trackCount: track.album.track_count ?? undefined,
           year: track.album.release_date
             ? Number.parseInt(track.album.release_date.slice(0, 4), 10) || undefined
@@ -143,7 +139,10 @@ export const tuneWeaveAlbumToCover = (album: TuneWeaveAlbum): CoverItem => ({
   cover: album.cover_url ?? undefined,
   subtitle:
     album.artist ??
-    album.artists?.map((artist) => artist.name).filter(Boolean).join(" / ") ??
+    album.artists
+      ?.map((artist) => artist.name)
+      .filter(Boolean)
+      .join(" / ") ??
     "",
   trackCount: Math.max(0, Number(album.track_count ?? 0)),
 });
@@ -160,7 +159,6 @@ export const tuneWeavePlaylistToCover = (playlist: TuneWeavePlaylist): CoverItem
   id: playlist.id || tuneWeaveRefId(playlist.ref) || playlist.ref,
   title: playlist.name || "未命名歌单",
   cover: playlist.cover_url ?? undefined,
-  subtitle:
-    typeof playlist.owner === "string" ? playlist.owner : (playlist.owner?.name ?? ""),
+  subtitle: typeof playlist.owner === "string" ? playlist.owner : (playlist.owner?.name ?? ""),
   trackCount: Math.max(0, Number(playlist.track_count ?? 0)),
 });

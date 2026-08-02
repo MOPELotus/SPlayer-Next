@@ -1,14 +1,8 @@
 import type { CoverItem } from "@/types/artist";
 import type { Track } from "@shared/types/player";
 import type { TuneWeavePlaylist, TuneWeaveTrack } from "@shared/types/tuneweave";
-import {
-  clearTuneWeaveCredentials,
-  tuneweaveData,
-} from "@/apis/tuneweave";
-import {
-  ensureTuneWeaveConfigured,
-  tuneWeaveSelectedAccountQuery,
-} from "@/services/tuneweave";
+import { clearTuneWeaveCredentials, tuneweaveData } from "@/apis/tuneweave";
+import { ensureTuneWeaveConfigured, tuneWeaveSelectedAccountQuery } from "@/services/tuneweave";
 import {
   extractTuneWeaveResources,
   fromTuneWeavePlatform,
@@ -78,10 +72,7 @@ export const fetchTuneWeaveFavoriteTracks = async (limit = 500): Promise<Track[]
     query: { ...query, limit },
   });
   return extractTuneWeaveResources<TuneWeaveTrack>(data, "track").map((track) =>
-    tuneWeaveTrackToTrack(
-      track,
-      fromTuneWeavePlatform(track.platform, "netease"),
-    ),
+    tuneWeaveTrackToTrack(track, fromTuneWeavePlatform(track.platform, "netease")),
   );
 };
 

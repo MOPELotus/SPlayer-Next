@@ -58,5 +58,8 @@ test("filters resources by discriminant", () => {
     { type: "track", data: { ref: "qq:t", platform: "qq", id: "t", name: "Track" } },
   ];
   const tracks = extractTuneWeaveResources<TuneWeaveTrack>(resources, "track");
-  assert.deepEqual(tracks.map((track) => track.name), ["Track"]);
+  assert.deepEqual(
+    tracks.map((track) => track.name),
+    ["Track"],
+  );
 });

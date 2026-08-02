@@ -71,8 +71,7 @@ const normalizePreferences = (input: Record<string, unknown>): TuneWeavePreferen
     credentialMode,
     fallbackToBuiltIn:
       typeof input.fallbackToBuiltIn === "boolean" ? input.fallbackToBuiltIn : true,
-    playbackFallback:
-      typeof input.playbackFallback === "boolean" ? input.playbackFallback : true,
+    playbackFallback: typeof input.playbackFallback === "boolean" ? input.playbackFallback : true,
     playbackPlatform:
       typeof input.playbackPlatform === "string" ? input.playbackPlatform.trim() : "",
     fallbackPlatforms: normalizeStringArray(input.fallbackPlatforms),
@@ -111,9 +110,7 @@ export const ensureTuneWeaveConfigured = async (): Promise<TuneWeavePreferences>
  * client/both 模式会附加调用方凭证，因此不能再提交显式 account。
  * both 模式的服务器账户别名用于登录落库；当前业务请求优先使用调用方凭证。
  */
-export const tuneWeaveAccountQuery = (
-  preferences: TuneWeavePreferences,
-): { account?: string } =>
+export const tuneWeaveAccountQuery = (preferences: TuneWeavePreferences): { account?: string } =>
   preferences.credentialMode === "server" ? { account: preferences.account } : {};
 
 export const tuneWeaveSelectedAccountQuery = (

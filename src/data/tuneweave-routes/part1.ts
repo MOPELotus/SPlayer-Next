@@ -12,7 +12,11 @@ export const routesPart1: TuneWeaveRouteDefinition[] = [
   { method: "GET", path: "/v1/account/cloud/tracks/details", category: "account" },
   { method: "POST", path: "/v1/account/cloud/tracks/details", category: "account" },
   { method: "GET", path: "/v1/account/cloud/tracks/{reference}/download", category: "account" },
-  { method: "GET", path: "/v1/account/cloud/tracks/{reference}/download/redirect", category: "account" },
+  {
+    method: "GET",
+    path: "/v1/account/cloud/tracks/{reference}/download/redirect",
+    category: "account",
+  },
   { method: "POST", path: "/v1/account/cloud/uploads", category: "account" },
   { method: "POST", path: "/v1/account/cloud/uploads/complete", category: "account" },
   { method: "POST", path: "/v1/account/cloud/uploads/ticket", category: "account" },

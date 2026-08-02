@@ -1,10 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { FormData } from "undici";
-import {
-  applyTuneWeaveBodyHeaders,
-  encodeTuneWeaveRequestBody,
-} from "./body";
+import { applyTuneWeaveBodyHeaders, encodeTuneWeaveRequestBody } from "./body";
 
 test("encodes JSON and text request bodies", () => {
   assert.equal(
@@ -24,9 +21,8 @@ test("encodes JSON and text request bodies", () => {
 
 test("generates content type headers for non-multipart bodies", () => {
   const headers: string[] = [];
-  applyTuneWeaveBodyHeaders(
-    { method: "POST", path: "/v1/test", body: { a: 1 } },
-    (name, value) => headers.push(name, value),
+  applyTuneWeaveBodyHeaders({ method: "POST", path: "/v1/test", body: { a: 1 } }, (name, value) =>
+    headers.push(name, value),
   );
   assert.deepEqual(headers, ["Content-Type", "application/json; charset=utf-8"]);
 });

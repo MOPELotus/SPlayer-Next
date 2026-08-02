@@ -1,8 +1,5 @@
 import { request as undiciRequest } from "undici";
-import type {
-  TuneWeaveBinaryResponse,
-  TuneWeaveResponseType,
-} from "@shared/types/tuneweave";
+import type { TuneWeaveBinaryResponse, TuneWeaveResponseType } from "@shared/types/tuneweave";
 
 type UndiciResponse = Awaited<ReturnType<typeof undiciRequest>>;
 
@@ -42,9 +39,7 @@ export const parseContentDispositionFileName = (value: string): string | undefin
   return name ? name.replace(/[\\/\0]/g, "_") : undefined;
 };
 
-export const isTuneWeaveBinaryResponse = (
-  value: unknown,
-): value is TuneWeaveBinaryResponse =>
+export const isTuneWeaveBinaryResponse = (value: unknown): value is TuneWeaveBinaryResponse =>
   Boolean(value) &&
   typeof value === "object" &&
   (value as { kind?: unknown }).kind === "binary" &&

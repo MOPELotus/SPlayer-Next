@@ -2,10 +2,7 @@ import type { Track } from "@shared/types/player";
 import type { TuneWeaveMediaStream } from "@shared/types/tuneweave";
 import type { QualityLevel } from "@/utils/quality";
 import { registerTuneWeaveMedia, tuneweaveData } from "@/apis/tuneweave";
-import {
-  ensureTuneWeaveConfigured,
-  tuneWeaveAccountQuery,
-} from "@/services/tuneweave";
+import { ensureTuneWeaveConfigured, tuneWeaveAccountQuery } from "@/services/tuneweave";
 import { canonicalTuneWeaveTrackRef } from "@/utils/format/tuneweave";
 
 const QUALITY_MAP: Record<QualityLevel, string> = {

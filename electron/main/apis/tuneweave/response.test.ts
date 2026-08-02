@@ -6,11 +6,7 @@ import {
   parseTuneWeaveResponseBody,
 } from "./response";
 
-const fakeResponse = (
-  contentType: string,
-  data: Uint8Array,
-  contentDisposition = "",
-) =>
+const fakeResponse = (contentType: string, data: Uint8Array, contentDisposition = "") =>
   ({
     statusCode: 200,
     headers: {

@@ -48,8 +48,8 @@ const credentialWasStored = (transaction: TuneWeaveQrTransaction): boolean => {
   const credential = transaction.caller_credential;
   return Boolean(
     credential &&
-      typeof credential === "object" &&
-      (credential as Record<string, unknown>).stored === true,
+    typeof credential === "object" &&
+    (credential as Record<string, unknown>).stored === true,
   );
 };
 
@@ -62,9 +62,10 @@ const renderQr = (transaction: TuneWeaveQrTransaction): void => {
     "image",
   ]);
   if (directImage) {
-    qrImage.value = directImage.startsWith("data:") || /^https?:\/\//i.test(directImage)
-      ? directImage
-      : `data:image/png;base64,${directImage}`;
+    qrImage.value =
+      directImage.startsWith("data:") || /^https?:\/\//i.test(directImage)
+        ? directImage
+        : `data:image/png;base64,${directImage}`;
     return;
   }
   const content = readString(transaction, ["qr_content", "content", "qr_url", "url"]);
@@ -218,7 +219,9 @@ watch(qrOpen, (open) => {
 });
 
 onMounted(() => {
-  void ensureTuneWeaveConfigured().then(refreshStatus).catch(() => {});
+  void ensureTuneWeaveConfigured()
+    .then(refreshStatus)
+    .catch(() => {});
 });
 
 onScopeDispose(pausePolling);
@@ -291,8 +294,7 @@ onScopeDispose(pausePolling);
 
       <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
         <div class="text-xs text-on-surface-variant/70">
-          {{ connected ? "连接正常" : "尚未验证连接" }} · 主进程会话凭证
-          {{ credentialCount }} 份
+          {{ connected ? "连接正常" : "尚未验证连接" }} · 主进程会话凭证 {{ credentialCount }} 份
         </div>
         <div class="flex items-center gap-2">
           <SButton
@@ -361,9 +363,7 @@ onScopeDispose(pausePolling);
         >
           <img v-if="qrImage" :src="qrImage" class="size-full object-contain" alt="QR" />
           <SLoading v-else-if="qrLoading" class="size-7 text-primary" />
-          <div v-else class="text-center text-xs text-gray-400 px-4">
-            点击下方按钮生成二维码
-          </div>
+          <div v-else class="text-center text-xs text-gray-400 px-4">点击下方按钮生成二维码</div>
         </div>
         <div class="text-center text-xs text-on-surface-variant min-h-4">{{ qrMessage }}</div>
       </div>

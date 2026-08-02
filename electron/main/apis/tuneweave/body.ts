@@ -86,16 +86,8 @@ const encodeMultipart = (
     if (totalBytes > MAX_MULTIPART_TOTAL_BYTES) {
       throw new Error("multipart files exceed 1 GiB in total");
     }
-    const bytes = Buffer.from(
-      file.bytes.buffer,
-      file.bytes.byteOffset,
-      file.bytes.byteLength,
-    );
-    form.append(
-      file.field,
-      new Blob([bytes], { type: file.contentType }),
-      file.fileName,
-    );
+    const bytes = Buffer.from(file.bytes.buffer, file.bytes.byteOffset, file.bytes.byteLength);
+    form.append(file.field, new Blob([bytes], { type: file.contentType }), file.fileName);
   });
 
   return form;

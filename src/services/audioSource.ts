@@ -196,14 +196,7 @@ const resolveOnlineUrl = async (
 export interface ResolvedTrackSource {
   source: string;
   fromCache: boolean;
-  provider:
-    | "local"
-    | "cache"
-    | "streaming"
-    | "tuneweave"
-    | "official"
-    | "plugin"
-    | "trial";
+  provider: "local" | "cache" | "streaming" | "tuneweave" | "official" | "plugin" | "trial";
   pluginId?: string;
   cacheRequest?: () => Promise<void>;
 }

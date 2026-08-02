@@ -32,8 +32,16 @@ export const routesPart4: TuneWeaveRouteDefinition[] = [
   { method: "DELETE", path: "/v1/playlists/{reference}/items", category: "playlists" },
   { method: "GET", path: "/v1/playlists/{reference}/items", category: "playlists" },
   { method: "POST", path: "/v1/playlists/{reference}/items", category: "playlists" },
-  { method: "GET", path: "/v1/playlists/{reference}/items/{item_id}/stream", category: "playlists" },
-  { method: "GET", path: "/v1/playlists/{reference}/items/{item_id}/stream/redirect", category: "playlists" },
+  {
+    method: "GET",
+    path: "/v1/playlists/{reference}/items/{item_id}/stream",
+    category: "playlists",
+  },
+  {
+    method: "GET",
+    path: "/v1/playlists/{reference}/items/{item_id}/stream/redirect",
+    category: "playlists",
+  },
   { method: "DELETE", path: "/v1/playlists/{reference}/tracks", category: "playlists" },
   { method: "GET", path: "/v1/playlists/{reference}/tracks", category: "playlists" },
   { method: "POST", path: "/v1/playlists/{reference}/tracks", category: "playlists" },

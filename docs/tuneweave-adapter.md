@@ -16,12 +16,12 @@ This fork treats TuneWeave as a first-class backend instead of exposing platform
 
 ## Runtime operations
 
-| Operation | Purpose |
-| --- | --- |
-| `request` | Call any relative TuneWeave HTTP endpoint. |
-| `configure` | Set the API base URL. Credentials are never accepted from ordinary renderer storage. |
-| `status` | Read connection state and credential count without exposing credential values. |
-| `health` | Check `/healthz` without credentials. |
+| Operation        | Purpose                                                                                   |
+| ---------------- | ----------------------------------------------------------------------------------------- |
+| `request`        | Call any relative TuneWeave HTTP endpoint.                                                |
+| `configure`      | Set the API base URL. Credentials are never accepted from ordinary renderer storage.      |
+| `status`         | Read connection state and credential count without exposing credential values.            |
+| `health`         | Check `/healthz` without credentials.                                                     |
 | `media:register` | Convert a `MediaStream` into a localhost URL suitable for the audio and download engines. |
 
 The default API base is `http://127.0.0.1:7832`. It can also be overridden at process start with `TUNEWEAVE_API_BASE`.

@@ -4,10 +4,7 @@ import {
   loginTuneWeavePassword,
   verifyTuneWeaveChallenge,
 } from "@/apis/auth/tuneweave";
-import {
-  getTuneWeavePreferences,
-  type TuneWeaveCredentialMode,
-} from "@/services/tuneweave";
+import { getTuneWeavePreferences, type TuneWeaveCredentialMode } from "@/services/tuneweave";
 import { toast } from "@/composables/useToast";
 import IconLucideKeyRound from "~icons/lucide/key-round";
 import IconLucideMessageSquareCode from "~icons/lucide/message-square-code";
@@ -44,8 +41,8 @@ const resultStoredCredential = (value: unknown): boolean => {
   const credential = (value as Record<string, unknown>).caller_credential;
   return Boolean(
     credential &&
-      typeof credential === "object" &&
-      (credential as Record<string, unknown>).stored === true,
+    typeof credential === "object" &&
+    (credential as Record<string, unknown>).stored === true,
   );
 };
 
@@ -119,10 +116,7 @@ const verifyChallenge = async (): Promise<void> => {
   }
   verifyLoading.value = true;
   try {
-    const result = await verifyTuneWeaveChallenge(
-      transactionId.value,
-      verificationCode.value,
-    );
+    const result = await verifyTuneWeaveChallenge(transactionId.value, verificationCode.value);
     announceSuccess(result);
     transactionId.value = "";
     challengeHint.value = "";
@@ -166,14 +160,22 @@ onScopeDispose(() => {
       <div class="flex rounded-lg bg-on-surface/6 p-0.5">
         <button
           class="border-none rounded-md px-3 py-1.5 text-xs cursor-pointer transition-colors"
-          :class="mode === 'password' ? 'bg-surface text-primary shadow-sm' : 'bg-transparent text-on-surface-variant'"
+          :class="
+            mode === 'password'
+              ? 'bg-surface text-primary shadow-sm'
+              : 'bg-transparent text-on-surface-variant'
+          "
           @click="mode = 'password'"
         >
           密码
         </button>
         <button
           class="border-none rounded-md px-3 py-1.5 text-xs cursor-pointer transition-colors"
-          :class="mode === 'sms' ? 'bg-surface text-primary shadow-sm' : 'bg-transparent text-on-surface-variant'"
+          :class="
+            mode === 'sms'
+              ? 'bg-surface text-primary shadow-sm'
+              : 'bg-transparent text-on-surface-variant'
+          "
           @click="mode = 'sms'"
         >
           验证码
@@ -303,7 +305,12 @@ onScopeDispose(() => {
             placeholder="86"
           />
         </label>
-        <SButton variant="secondary" type="primary" :loading="challengeLoading" @click="createChallenge">
+        <SButton
+          variant="secondary"
+          type="primary"
+          :loading="challengeLoading"
+          @click="createChallenge"
+        >
           发送验证码
         </SButton>
       </div>
@@ -319,7 +326,12 @@ onScopeDispose(() => {
             @keyup.enter="verifyChallenge"
           />
         </label>
-        <SButton type="primary" :loading="verifyLoading" :disabled="!transactionId" @click="verifyChallenge">
+        <SButton
+          type="primary"
+          :loading="verifyLoading"
+          :disabled="!transactionId"
+          @click="verifyChallenge"
+        >
           <template #icon><IconLucideMessageSquareCode /></template>
           验证并登录
         </SButton>

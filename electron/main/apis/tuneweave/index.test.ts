@@ -36,10 +36,10 @@ test("builds strict relative URLs with repeated query values", () => {
 });
 
 test("sanitizes and limits caller credentials", () => {
-  assert.deepEqual(
-    sanitizeTuneWeaveCredentials([" twc1_a ", "", "twc1_a", "twc1_b"]),
-    ["twc1_a", "twc1_b"],
-  );
+  assert.deepEqual(sanitizeTuneWeaveCredentials([" twc1_a ", "", "twc1_a", "twc1_b"]), [
+    "twc1_a",
+    "twc1_b",
+  ]);
   assert.throws(
     () => sanitizeTuneWeaveCredentials(Array.from({ length: 9 }, (_, index) => `twc1_${index}`)),
     /at most 8/,

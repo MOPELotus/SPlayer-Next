@@ -1,9 +1,6 @@
 import type { TuneWeaveQrTransaction } from "@shared/types/tuneweave";
 import { tuneweaveData } from "@/apis/tuneweave";
-import {
-  ensureTuneWeaveConfigured,
-  type TuneWeaveCredentialMode,
-} from "@/services/tuneweave";
+import { ensureTuneWeaveConfigured, type TuneWeaveCredentialMode } from "@/services/tuneweave";
 
 export interface TuneWeavePasswordLoginInput {
   platform?: string;

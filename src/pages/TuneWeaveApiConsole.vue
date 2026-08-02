@@ -99,10 +99,7 @@ const parseJsonObject = (raw: string, label: string): Record<string, unknown> =>
   return value as Record<string, unknown>;
 };
 
-const parseQuery = (): Record<
-  string,
-  TuneWeaveQueryValue | TuneWeaveQueryValue[]
-> => {
+const parseQuery = (): Record<string, TuneWeaveQueryValue | TuneWeaveQueryValue[]> => {
   const input = parseJsonObject(queryText.value, "Query");
   const output: Record<string, TuneWeaveQueryValue | TuneWeaveQueryValue[]> = {};
   for (const [key, value] of Object.entries(input)) {
@@ -241,11 +238,7 @@ const sendRequest = async (): Promise<void> => {
   if (!route) return;
   const missing = pathParameters.value.filter((name) => !pathValues[name]?.trim());
   if (missing.length > 0) {
-    responseText.value = JSON.stringify(
-      { error: `缺少路径参数：${missing.join(", ")}` },
-      null,
-      2,
-    );
+    responseText.value = JSON.stringify({ error: `缺少路径参数：${missing.join(", ")}` }, null, 2);
     return;
   }
 
@@ -365,14 +358,12 @@ onMounted(resetPathValues);
             class="rounded-xl border border-solid border-outline-variant/15 bg-surface-panel p-4 flex flex-col gap-3"
           >
             <div class="flex items-center gap-3">
-              <STag
-                :type="destructive ? 'warning' : 'primary'"
-                variant="soft"
-                class="font-mono"
-              >
+              <STag :type="destructive ? 'warning' : 'primary'" variant="soft" class="font-mono">
                 {{ selectedRoute?.method }}
               </STag>
-              <code class="min-w-0 flex-1 truncate text-sm text-on-surface">{{ resolvedPath }}</code>
+              <code class="min-w-0 flex-1 truncate text-sm text-on-surface">
+                {{ resolvedPath }}
+              </code>
               <select
                 v-if="hasBody"
                 v-model="bodyType"
@@ -462,7 +453,11 @@ onMounted(resetPathValues);
                 </div>
                 <div class="flex min-h-5 items-center gap-2 text-[11px] text-on-surface-variant/55">
                   <span>
-                    {{ selectedFiles.length > 0 ? `已选择 ${selectedFiles.length} 个文件` : '未选择文件' }}
+                    {{
+                      selectedFiles.length > 0
+                        ? `已选择 ${selectedFiles.length} 个文件`
+                        : "未选择文件"
+                    }}
                   </span>
                   <button
                     v-if="selectedFiles.length > 0"
@@ -477,7 +472,9 @@ onMounted(resetPathValues);
 
             <div class="flex items-center justify-between gap-3">
               <div class="text-xs text-on-surface-variant/55">
-                <span v-if="destructive" class="text-amber-500">该方法可能修改或删除远端数据。</span>
+                <span v-if="destructive" class="text-amber-500">
+                  该方法可能修改或删除远端数据。
+                </span>
                 <span v-else-if="bodyType === 'multipart' && hasBody">
                   文件只在发送时读入内存，不写入请求历史。
                 </span>
@@ -509,12 +506,15 @@ onMounted(resetPathValues);
               </div>
               <pre
                 class="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-black/25 p-3 font-mono text-xs leading-5 text-on-surface"
-              >{{ responseText || "尚未发送请求" }}</pre>
+                >{{ responseText || "尚未发送请求" }}</pre
+              >
             </div>
             <div
               class="min-h-0 rounded-xl border border-solid border-outline-variant/15 bg-surface-panel p-3 flex flex-col"
             >
-              <div class="shrink-0 px-1 pb-2 text-xs font-medium text-on-surface-variant">本次会话历史</div>
+              <div class="shrink-0 px-1 pb-2 text-xs font-medium text-on-surface-variant">
+                本次会话历史
+              </div>
               <div class="min-h-0 flex-1 overflow-y-auto flex flex-col gap-1.5">
                 <button
                   v-for="entry in history"

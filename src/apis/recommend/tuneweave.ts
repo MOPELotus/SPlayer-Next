@@ -3,10 +3,7 @@ import type { Track } from "@shared/types/player";
 import type { Platform } from "@shared/types/platform";
 import type { TuneWeavePlaylist, TuneWeaveTrack } from "@shared/types/tuneweave";
 import { tuneweaveRequest } from "@/apis/tuneweave";
-import {
-  ensureTuneWeaveConfigured,
-  tuneWeaveSelectedAccountQuery,
-} from "@/services/tuneweave";
+import { ensureTuneWeaveConfigured, tuneWeaveSelectedAccountQuery } from "@/services/tuneweave";
 import {
   extractTuneWeaveResources,
   fromTuneWeavePlatform,
@@ -40,10 +37,7 @@ export const fetchTuneWeaveRecommendedTracks = async (limit = 50): Promise<Track
     limit,
   );
   return tracks.map((track) =>
-    tuneWeaveTrackToTrack(
-      track,
-      fromTuneWeavePlatform(track.platform, DEFAULT_PLATFORM),
-    ),
+    tuneWeaveTrackToTrack(track, fromTuneWeavePlatform(track.platform, DEFAULT_PLATFORM)),
   );
 };
 
@@ -54,16 +48,11 @@ export const fetchTuneWeavePersonalFm = async (limit = 30): Promise<Track[]> => 
     limit,
   );
   return tracks.map((track) =>
-    tuneWeaveTrackToTrack(
-      track,
-      fromTuneWeavePlatform(track.platform, DEFAULT_PLATFORM),
-    ),
+    tuneWeaveTrackToTrack(track, fromTuneWeavePlatform(track.platform, DEFAULT_PLATFORM)),
   );
 };
 
-export const fetchTuneWeaveRecommendedPlaylists = async (
-  limit = 20,
-): Promise<CoverItem[]> => {
+export const fetchTuneWeaveRecommendedPlaylists = async (limit = 20): Promise<CoverItem[]> => {
   const playlists = await recommendationRequest<TuneWeavePlaylist>(
     "/v1/recommendations/playlists",
     "playlist",

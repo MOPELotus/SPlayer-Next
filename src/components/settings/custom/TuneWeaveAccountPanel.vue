@@ -55,8 +55,7 @@ const pickBoolean = (value: unknown, keys: string[]): boolean | null => {
 
 const displayName = computed(
   () =>
-    pickString(profile.value, ["nickname", "display_name", "name", "username"]) ||
-    "未读取账户资料",
+    pickString(profile.value, ["nickname", "display_name", "name", "username"]) || "未读取账户资料",
 );
 const avatar = computed(() =>
   pickString(profile.value, ["avatar_url", "avatarUrl", "avatar", "picture"]),
@@ -177,7 +176,7 @@ onScopeDispose(() => {
         <div class="truncate text-sm font-semibold text-on-surface">{{ displayName }}</div>
         <div class="mt-0.5 truncate text-xs text-on-surface-variant/60">
           {{ preferences.accountPlatform }} · {{ preferences.account }}
-          <template v-if="userId"> · {{ userId }}</template>
+          <template v-if="userId">· {{ userId }}</template>
         </div>
         <div v-if="signature" class="mt-1 truncate text-xs text-on-surface-variant/45">
           {{ signature }}
@@ -226,9 +225,7 @@ onScopeDispose(() => {
         >
           刷新会话
         </SButton>
-        <SButton variant="secondary" size="small" type="error" @click="logout">
-          退出会话
-        </SButton>
+        <SButton variant="secondary" size="small" type="error" @click="logout">退出会话</SButton>
       </div>
     </div>
   </div>
