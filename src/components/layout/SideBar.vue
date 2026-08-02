@@ -170,6 +170,11 @@ const menuItems = computed<SMenuItem[]>(() => [
   },
   { key: "/favorites", label: t("nav.favorites"), icon: markRaw(IconLucideStar) },
   { key: "/cloud", label: t("nav.cloud"), icon: markRaw(IconLucideCloud) },
+  {
+    key: "/tuneweave-library",
+    label: "TuneWeave 资料库",
+    icon: markRaw(IconLucideMusic),
+  },
   { key: "/uni-playlists", label: "Uni Playlist", icon: markRaw(IconLucideLayers3) },
   {
     key: "/tuneweave-api",
