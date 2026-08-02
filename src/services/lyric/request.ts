@@ -2,6 +2,8 @@ import type { Track } from "@shared/types/player";
 import type { LyricMatchResult } from "@shared/types/lyrics";
 import type { Platform } from "@shared/types/platform";
 import { useStreamingStore } from "@/stores/streaming";
+import { requestTuneWeaveLyrics } from "@/apis/lyrics/tuneweave";
+import { getTuneWeavePreferences } from "@/services/tuneweave";
 
 /**
  * 向指定平台请求歌词
@@ -13,9 +15,21 @@ export const requestPlatformLyric = async (
   platform: Platform,
   track: Track,
 ): Promise<LyricMatchResult | null> => {
+  const tuneWeavePreferences = getTuneWeavePreferences();
+  if (tuneWeavePreferences.enabled) {
+    try {
+      const result = await requestTuneWeaveLyrics(platform, track);
+      if (result) return result;
+    } catch (error) {
+      if (!tuneWeavePreferences.fallbackToBuiltIn) throw error;
+      console.warn("[tuneweave] lyric request failed, falling back", error);
+    }
+  }
+
   const byId = track.source === platform;
-  // QM lyric 接口要数字 songID
-  const lookupId = platform === "qqmusic" ? (track.extId ?? track.id) : track.id;
+  // QM lyric 接口要数字 songID；TuneWeave canonical ref 不能作为数字 ID 传入。
+  const qqExtId = track.extId && !track.extId.includes(":") ? track.extId : undefined;
+  const lookupId = platform === "qqmusic" ? (qqExtId ?? track.id) : track.id;
   const resp = byId
     ? await window.api.lyrics.matchById(platform, lookupId)
     : await window.api.lyrics.matchByQuery(platform, track);
