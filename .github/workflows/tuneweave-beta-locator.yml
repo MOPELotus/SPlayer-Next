@@ -1,0 +1,44 @@
+name: TuneWeave Beta Artifact Locator
+
+on:
+  push:
+    branches:
+      - agent/tuneweave-native-provider
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  locate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Locate latest successful beta run
+        id: locate
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          RUN_ID="$(
+            gh api \
+              --header 'Accept: application/vnd.github+json' \
+              "repos/$GITHUB_REPOSITORY/actions/workflows/tuneweave-beta.yml/runs?branch=agent%2Ftuneweave-native-provider&status=success&per_page=20" \
+              --jq '.workflow_runs[0].id'
+          )"
+          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+            echo "No successful TuneWeave beta run was found"
+            exit 1
+          fi
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Publish artifact run locator
+        shell: bash
+        run: |
+          git push origin "$GITHUB_SHA:refs/heads/tuneweave-beta-artifact-run-${{ steps.locate.outputs.run_id }}" --force
