@@ -1,5 +1,10 @@
 import { randomBytes } from "node:crypto";
-import { createServer, type Server, type ServerResponse } from "node:http";
+import {
+  createServer,
+  type IncomingMessage,
+  type Server,
+  type ServerResponse,
+} from "node:http";
 import type { AddressInfo } from "node:net";
 import { request as undiciRequest, type Dispatcher } from "undici";
 import type {
@@ -15,6 +20,67 @@ const MAX_CREDENTIALS = 8;
 const DEFAULT_MEDIA_TTL_MS = 15 * 60 * 1000;
 const MEDIA_PATH_PREFIX = "/tuneweave-media/";
 
+export class TuneWeaveRequestError extends Error {
+  readonly status?: number;
+  readonly body?: unknown;
+
+  constructor(message: string, status?: number, body?: unknown) {
+    super(message);
+    this.name = "TuneWeaveRequestError";
+    this.status = status;
+    this.body = body;
+  }
+}
+
+export function normalizeTuneWeaveBaseUrl(value: string): string {
+  const url = new URL(value || DEFAULT_BASE_URL);
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("TuneWeave base URL must use http or https");
+  }
+  url.hash = "";
+  url.search = "";
+  url.pathname = url.pathname.replace(/\/+$/, "");
+  return url.toString().replace(/\/$/, "");
+}
+
+export function sanitizeTuneWeaveCredentials(values: readonly string[]): string[] {
+  const result: string[] = [];
+  for (const raw of values) {
+    const value = raw.trim();
+    if (!value || result.includes(value)) continue;
+    if (value.length > 8192) throw new Error("TuneWeave credential is too long");
+    result.push(value);
+    if (result.length > MAX_CREDENTIALS) {
+      throw new Error(`TuneWeave accepts at most ${MAX_CREDENTIALS} credentials`);
+    }
+  }
+  return result;
+}
+
+const assertRelativePath = (path: string): void => {
+  if (!path.startsWith("/") || path.startsWith("//") || path.includes("\0")) {
+    throw new Error("TuneWeave path must be an absolute relative path");
+  }
+  if (/^\/https?:/i.test(path)) throw new Error("absolute upstream URLs are not allowed");
+};
+
+export function buildTuneWeaveUrl(
+  baseUrl: string,
+  path: string,
+  query?: TuneWeaveRequest["query"],
+): URL {
+  assertRelativePath(path);
+  const url = new URL(`${normalizeTuneWeaveBaseUrl(baseUrl)}${path}`);
+  for (const [key, rawValue] of Object.entries(query ?? {})) {
+    const values = Array.isArray(rawValue) ? rawValue : [rawValue];
+    for (const value of values) {
+      if (value === undefined || value === null) continue;
+      url.searchParams.append(key, String(value));
+    }
+  }
+  return url;
+}
+
 let runtimeBaseUrl = normalizeTuneWeaveBaseUrl(
   process.env.TUNEWEAVE_API_BASE?.trim() || DEFAULT_BASE_URL,
 );
@@ -29,67 +95,6 @@ const mediaTickets = new Map<string, MediaTicket>();
 let mediaProxyServer: Server | null = null;
 let mediaProxyPort: number | null = null;
 let mediaProxyStarting: Promise<number> | null = null;
-
-export class TuneWeaveRequestError extends Error {
-  readonly status?: number;
-  readonly body?: unknown;
-
-  constructor(message: string, status?: number, body?: unknown) {
-    super(message);
-    this.name = "TuneWeaveRequestError";
-    this.status = status;
-    this.body = body;
-  }
-}
-
-export const normalizeTuneWeaveBaseUrl = (value: string): string => {
-  const url = new URL(value || DEFAULT_BASE_URL);
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error("TuneWeave base URL must use http or https");
-  }
-  url.hash = "";
-  url.search = "";
-  url.pathname = url.pathname.replace(/\/+$/, "");
-  return url.toString().replace(/\/$/, "");
-};
-
-export const sanitizeTuneWeaveCredentials = (values: readonly string[]): string[] => {
-  const result: string[] = [];
-  for (const raw of values) {
-    const value = raw.trim();
-    if (!value || result.includes(value)) continue;
-    if (value.length > 8192) throw new Error("TuneWeave credential is too long");
-    result.push(value);
-    if (result.length > MAX_CREDENTIALS) {
-      throw new Error(`TuneWeave accepts at most ${MAX_CREDENTIALS} credentials`);
-    }
-  }
-  return result;
-};
-
-const assertRelativePath = (path: string): void => {
-  if (!path.startsWith("/") || path.startsWith("//") || path.includes("\0")) {
-    throw new Error("TuneWeave path must be an absolute relative path");
-  }
-  if (/^\/https?:/i.test(path)) throw new Error("absolute upstream URLs are not allowed");
-};
-
-export const buildTuneWeaveUrl = (
-  baseUrl: string,
-  path: string,
-  query?: TuneWeaveRequest["query"],
-): URL => {
-  assertRelativePath(path);
-  const url = new URL(`${normalizeTuneWeaveBaseUrl(baseUrl)}${path}`);
-  for (const [key, rawValue] of Object.entries(query ?? {})) {
-    const values = Array.isArray(rawValue) ? rawValue : [rawValue];
-    for (const value of values) {
-      if (value === undefined || value === null) continue;
-      url.searchParams.append(key, String(value));
-    }
-  }
-  return url;
-};
 
 const appendHeader = (headers: string[], name: string, value: string): void => {
   headers.push(name, value);
@@ -150,9 +155,7 @@ export const requestTuneWeave = async (input: TuneWeaveRequest): Promise<unknown
       bodyTimeout: 60_000,
     });
   } catch (error) {
-    throw new TuneWeaveRequestError(
-      error instanceof Error ? error.message : String(error),
-    );
+    throw new TuneWeaveRequestError(error instanceof Error ? error.message : String(error));
   }
 
   const responseBody = await parseResponseBody(response);
@@ -193,7 +196,6 @@ const copyUpstreamHeaders = (
 ): void => {
   const allowed = new Set([
     "accept-ranges",
-    "cache-control",
     "content-disposition",
     "content-length",
     "content-range",
@@ -210,8 +212,8 @@ const copyUpstreamHeaders = (
 
 const handleMediaRequest = async (
   token: string,
-  request: Parameters<NonNullable<Parameters<typeof createServer>[0]>>[0],
-  response: Parameters<NonNullable<Parameters<typeof createServer>[0]>>[1],
+  request: IncomingMessage,
+  response: ServerResponse,
 ): Promise<void> => {
   purgeExpiredMediaTickets();
   const ticket = mediaTickets.get(token);
