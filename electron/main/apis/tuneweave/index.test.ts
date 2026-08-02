@@ -4,6 +4,7 @@ import {
   buildTuneWeaveUrl,
   normalizeTuneWeaveBaseUrl,
   sanitizeTuneWeaveCredentials,
+  sanitizeTuneWeaveResponse,
 } from "./index";
 
 test("normalizes TuneWeave base URLs", () => {
@@ -43,4 +44,24 @@ test("sanitizes and limits caller credentials", () => {
     () => sanitizeTuneWeaveCredentials(Array.from({ length: 9 }, (_, index) => `twc1_${index}`)),
     /at most 8/,
   );
+});
+
+test("captures caller credentials without exposing the bearer secret", () => {
+  const sanitized = sanitizeTuneWeaveResponse({
+    ok: true,
+    data: {
+      status: "confirmed",
+      caller_credential: {
+        format: "tuneweave_credential_v1",
+        platform: "qq",
+        value: "twc1_secret",
+        expires_at: null,
+      },
+    },
+  }) as {
+    data: { caller_credential: Record<string, unknown> };
+  };
+  assert.equal(sanitized.data.caller_credential.value, undefined);
+  assert.equal(sanitized.data.caller_credential.platform, "qq");
+  assert.equal(sanitized.data.caller_credential.stored, true);
 });
