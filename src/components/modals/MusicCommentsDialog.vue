@@ -40,10 +40,15 @@ const maxPage = computed(() =>
 
 const makeContextKey = (trackId: string, source: string): string => `${trackId}\n${source}`;
 
+const preferredBuiltinSource = (): string =>
+  status.commentsTrack?.extId?.includes(":") ? "builtin:tuneweave" : "builtin:netease";
+
 const loadSources = async (): Promise<void> => {
   sources.value = await window.api.comments.sources();
   if (!sources.value.some((source) => source.id === sourceId.value)) {
-    sourceId.value = sources.value[0]?.id ?? "";
+    const preferred = preferredBuiltinSource();
+    sourceId.value =
+      sources.value.find((source) => source.id === preferred)?.id ?? sources.value[0]?.id ?? "";
   }
 };
 
@@ -110,6 +115,7 @@ watch(
       requestTokens.new += 1;
       return;
     }
+    sourceId.value = "";
     await loadSources();
     await refresh();
   },
