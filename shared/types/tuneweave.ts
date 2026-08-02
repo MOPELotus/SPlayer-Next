@@ -2,6 +2,7 @@ export type TuneWeaveHttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | 
 
 export type TuneWeaveQueryValue = string | number | boolean | null | undefined;
 export type TuneWeaveBodyType = "json" | "text" | "multipart";
+export type TuneWeaveResponseType = "auto" | "json" | "text" | "bytes";
 
 export interface TuneWeaveMultipartFile {
   /** multipart 字段名。 */
@@ -17,6 +18,15 @@ export interface TuneWeaveMultipartBody {
   files?: TuneWeaveMultipartFile[];
 }
 
+export interface TuneWeaveBinaryResponse {
+  kind: "binary";
+  status: number;
+  contentType: string;
+  contentDisposition?: string;
+  fileName?: string;
+  bytes: Uint8Array;
+}
+
 /** 渲染进程提交给主进程的 TuneWeave HTTP 请求。 */
 export interface TuneWeaveRequest {
   method?: TuneWeaveHttpMethod;
@@ -25,6 +35,7 @@ export interface TuneWeaveRequest {
   query?: Record<string, TuneWeaveQueryValue | TuneWeaveQueryValue[]>;
   bodyType?: TuneWeaveBodyType;
   body?: unknown;
+  responseType?: TuneWeaveResponseType;
   headers?: Record<string, string>;
   /** 是否附加当前调用方凭证，默认 true。 */
   includeCredentials?: boolean;
