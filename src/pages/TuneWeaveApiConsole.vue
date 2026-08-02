@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import type {
+  TuneWeaveBinaryResponse,
   TuneWeaveBodyType,
   TuneWeaveHttpMethod,
   TuneWeaveMultipartBody,
   TuneWeaveMultipartFile,
   TuneWeaveQueryValue,
+  TuneWeaveResponseType,
 } from "@shared/types/tuneweave";
-import { tuneweaveRequest } from "@/apis/tuneweave";
+import { tuneweaveRawRequest } from "@/apis/tuneweave";
 import {
   TUNEWEAVE_ROUTES,
   TUNEWEAVE_ROUTE_SOURCE_RELEASE,
@@ -29,6 +31,7 @@ const selectedKey = ref("GET /healthz");
 const pathValues = reactive<Record<string, string>>({});
 const queryText = ref("{}");
 const bodyType = ref<TuneWeaveBodyType>("json");
+const responseType = ref<TuneWeaveResponseType>("auto");
 const bodyText = ref("{}");
 const multipartFieldsText = ref("{}");
 const multipartFileField = ref("file");
@@ -36,6 +39,7 @@ const selectedFiles = shallowRef<File[]>([]);
 const includeCredentials = ref(true);
 const sending = ref(false);
 const responseText = ref("");
+const binaryResponse = shallowRef<TuneWeaveBinaryResponse | null>(null);
 const history = shallowRef<ConsoleHistoryEntry[]>([]);
 
 const categories = computed(() => [
@@ -160,6 +164,12 @@ const buildRequestBody = async (): Promise<unknown> => {
   return multipart;
 };
 
+const isBinaryResponse = (value: unknown): value is TuneWeaveBinaryResponse =>
+  Boolean(value) &&
+  typeof value === "object" &&
+  (value as { kind?: unknown }).kind === "binary" &&
+  (value as { bytes?: unknown }).bytes instanceof Uint8Array;
+
 const resetPathValues = (): void => {
   for (const key of Object.keys(pathValues)) delete pathValues[key];
   for (const name of pathParameters.value) pathValues[name] = "";
@@ -168,6 +178,7 @@ const resetPathValues = (): void => {
 watch(selectedKey, () => {
   resetPathValues();
   responseText.value = "";
+  binaryResponse.value = null;
   selectedFiles.value = [];
 });
 
@@ -184,6 +195,45 @@ const clearFiles = (): void => {
   selectedFiles.value = [];
 };
 
+const formatResponse = (response: unknown): boolean => {
+  binaryResponse.value = null;
+  if (isBinaryResponse(response)) {
+    binaryResponse.value = response;
+    responseText.value = JSON.stringify(
+      {
+        kind: response.kind,
+        status: response.status,
+        contentType: response.contentType,
+        contentDisposition: response.contentDisposition,
+        fileName: response.fileName,
+        size: response.bytes.byteLength,
+      },
+      null,
+      2,
+    );
+    return true;
+  }
+  responseText.value =
+    typeof response === "string" ? response : JSON.stringify(response, null, 2);
+  if (response && typeof response === "object" && "ok" in response) {
+    return (response as { ok?: unknown }).ok === true;
+  }
+  return true;
+};
+
+const downloadBinaryResponse = (): void => {
+  const response = binaryResponse.value;
+  if (!response) return;
+  const copied = new Uint8Array(response.bytes).buffer;
+  const blob = new Blob([copied], { type: response.contentType });
+  const url = URL.createObjectURL(blob);
+  const anchor = window.document.createElement("a");
+  anchor.href = url;
+  anchor.download = response.fileName || "tuneweave-response.bin";
+  anchor.click();
+  URL.revokeObjectURL(url);
+};
+
 const sendRequest = async (): Promise<void> => {
   const route = selectedRoute.value;
   if (!route) return;
@@ -198,22 +248,23 @@ const sendRequest = async (): Promise<void> => {
   }
 
   sending.value = true;
+  binaryResponse.value = null;
   const startedAt = performance.now();
   let ok = false;
   try {
     await ensureTuneWeaveConfigured();
     const query = parseQuery();
     const body = await buildRequestBody();
-    const response = await tuneweaveRequest<unknown>({
+    const response = await tuneweaveRawRequest<unknown>({
       method: route.method,
       path: resolvedPath.value,
       query,
       bodyType: hasBody.value ? bodyType.value : undefined,
       body,
+      responseType: responseType.value,
       includeCredentials: includeCredentials.value,
     });
-    ok = response.ok;
-    responseText.value = JSON.stringify(response, null, 2);
+    ok = formatResponse(response);
   } catch (error) {
     const body =
       error && typeof error === "object" && "body" in error
@@ -324,10 +375,21 @@ onMounted(resetPathValues);
                 v-if="hasBody"
                 v-model="bodyType"
                 class="h-8 rounded-lg border border-solid border-outline-variant/25 bg-surface px-2 text-xs text-on-surface"
+                title="请求体类型"
               >
                 <option value="json">JSON</option>
                 <option value="text">Text</option>
                 <option value="multipart">Multipart</option>
+              </select>
+              <select
+                v-model="responseType"
+                class="h-8 rounded-lg border border-solid border-outline-variant/25 bg-surface px-2 text-xs text-on-surface"
+                title="响应类型"
+              >
+                <option value="auto">响应：自动</option>
+                <option value="json">响应：JSON</option>
+                <option value="text">响应：文本</option>
+                <option value="bytes">响应：字节</option>
               </select>
               <label class="flex items-center gap-2 text-xs text-on-surface-variant">
                 <SSwitch v-model="includeCredentials" />
@@ -430,7 +492,19 @@ onMounted(resetPathValues);
             <div
               class="min-h-0 rounded-xl border border-solid border-outline-variant/15 bg-surface-panel p-3 flex flex-col"
             >
-              <div class="shrink-0 px-1 pb-2 text-xs font-medium text-on-surface-variant">响应</div>
+              <div class="shrink-0 px-1 pb-2 flex items-center justify-between gap-3">
+                <span class="text-xs font-medium text-on-surface-variant">响应</span>
+                <SButton
+                  v-if="binaryResponse"
+                  size="tiny"
+                  variant="secondary"
+                  type="primary"
+                  @click="downloadBinaryResponse"
+                >
+                  <template #icon><IconLucideDownload /></template>
+                  保存 {{ binaryResponse.bytes.byteLength }} 字节
+                </SButton>
+              </div>
               <pre
                 class="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-black/25 p-3 font-mono text-xs leading-5 text-on-surface"
               >{{ responseText || "尚未发送请求" }}</pre>
