@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import type {
+  TuneWeaveBodyType,
   TuneWeaveHttpMethod,
+  TuneWeaveMultipartBody,
+  TuneWeaveMultipartFile,
   TuneWeaveQueryValue,
 } from "@shared/types/tuneweave";
 import { tuneweaveRequest } from "@/apis/tuneweave";
@@ -25,7 +28,11 @@ const category = ref("all");
 const selectedKey = ref("GET /healthz");
 const pathValues = reactive<Record<string, string>>({});
 const queryText = ref("{}");
+const bodyType = ref<TuneWeaveBodyType>("json");
 const bodyText = ref("{}");
+const multipartFieldsText = ref("{}");
+const multipartFileField = ref("file");
+const selectedFiles = shallowRef<File[]>([]);
 const includeCredentials = ref(true);
 const sending = ref(false);
 const responseText = ref("");
@@ -112,6 +119,47 @@ const parseQuery = (): Record<
   return output;
 };
 
+const parseMultipartFields = (): Record<string, string | string[]> => {
+  const input = parseJsonObject(multipartFieldsText.value, "Multipart fields");
+  const fields: Record<string, string | string[]> = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (typeof value === "string") {
+      fields[key] = value;
+      continue;
+    }
+    if (Array.isArray(value) && value.every((item) => typeof item === "string")) {
+      fields[key] = value as string[];
+      continue;
+    }
+    throw new Error(`Multipart fields.${key} 只能是字符串或字符串数组`);
+  }
+  return fields;
+};
+
+const buildMultipartFiles = async (): Promise<TuneWeaveMultipartFile[]> => {
+  const field = multipartFileField.value.trim();
+  if (selectedFiles.value.length > 0 && !field) throw new Error("请输入文件字段名");
+  return Promise.all(
+    selectedFiles.value.map(async (file) => ({
+      field,
+      fileName: file.name,
+      contentType: file.type || "application/octet-stream",
+      bytes: new Uint8Array(await file.arrayBuffer()),
+    })),
+  );
+};
+
+const buildRequestBody = async (): Promise<unknown> => {
+  if (!hasBody.value) return undefined;
+  if (bodyType.value === "json") return parseJsonObject(bodyText.value, "Body");
+  if (bodyType.value === "text") return bodyText.value;
+  const multipart: TuneWeaveMultipartBody = {
+    fields: parseMultipartFields(),
+    files: await buildMultipartFiles(),
+  };
+  return multipart;
+};
+
 const resetPathValues = (): void => {
   for (const key of Object.keys(pathValues)) delete pathValues[key];
   for (const name of pathParameters.value) pathValues[name] = "";
@@ -120,10 +168,20 @@ const resetPathValues = (): void => {
 watch(selectedKey, () => {
   resetPathValues();
   responseText.value = "";
+  selectedFiles.value = [];
 });
 
 const selectRoute = (route: TuneWeaveRouteDefinition): void => {
   selectedKey.value = routeKey(route);
+};
+
+const onFilesSelected = (event: Event): void => {
+  const input = event.target as HTMLInputElement;
+  selectedFiles.value = Array.from(input.files ?? []);
+};
+
+const clearFiles = (): void => {
+  selectedFiles.value = [];
 };
 
 const sendRequest = async (): Promise<void> => {
@@ -145,11 +203,12 @@ const sendRequest = async (): Promise<void> => {
   try {
     await ensureTuneWeaveConfigured();
     const query = parseQuery();
-    const body = hasBody.value ? parseJsonObject(bodyText.value, "Body") : undefined;
+    const body = await buildRequestBody();
     const response = await tuneweaveRequest<unknown>({
       method: route.method,
       path: resolvedPath.value,
       query,
+      bodyType: hasBody.value ? bodyType.value : undefined,
       body,
       includeCredentials: includeCredentials.value,
     });
@@ -193,7 +252,9 @@ onMounted(resetPathValues);
     <div class="mx-auto h-full max-w-7xl flex flex-col gap-4">
       <header class="shrink-0 flex items-end justify-between gap-4 pt-2">
         <div>
-          <div class="text-xs font-medium text-primary">TuneWeave {{ TUNEWEAVE_ROUTE_SOURCE_RELEASE }}</div>
+          <div class="text-xs font-medium text-primary">
+            TuneWeave {{ TUNEWEAVE_ROUTE_SOURCE_RELEASE }}
+          </div>
           <h1 class="mt-1 text-2xl font-bold text-on-surface">API 控制台</h1>
           <p class="mt-1 text-sm text-on-surface-variant/60">
             {{ TUNEWEAVE_ROUTES.length }} 条固定路由；用于验证专用 UI 尚未覆盖的低频与平台扩展端点
@@ -259,6 +320,15 @@ onMounted(resetPathValues);
                 {{ selectedRoute?.method }}
               </STag>
               <code class="min-w-0 flex-1 truncate text-sm text-on-surface">{{ resolvedPath }}</code>
+              <select
+                v-if="hasBody"
+                v-model="bodyType"
+                class="h-8 rounded-lg border border-solid border-outline-variant/25 bg-surface px-2 text-xs text-on-surface"
+              >
+                <option value="json">JSON</option>
+                <option value="text">Text</option>
+                <option value="multipart">Multipart</option>
+              </select>
               <label class="flex items-center gap-2 text-xs text-on-surface-variant">
                 <SSwitch v-model="includeCredentials" />
                 附加会话凭证
@@ -282,22 +352,71 @@ onMounted(resetPathValues);
                 <textarea
                   v-model="queryText"
                   spellcheck="false"
-                  class="min-h-28 resize-y rounded-lg border border-solid border-outline-variant/25 bg-surface px-3 py-2 font-mono text-xs text-on-surface outline-none focus:border-primary"
+                  class="min-h-32 resize-y rounded-lg border border-solid border-outline-variant/25 bg-surface px-3 py-2 font-mono text-xs text-on-surface outline-none focus:border-primary"
                 />
               </label>
-              <label v-if="hasBody" class="flex flex-col gap-1">
+
+              <label v-if="hasBody && bodyType === 'json'" class="flex flex-col gap-1">
                 <span class="text-[11px] text-on-surface-variant/60">Body JSON</span>
                 <textarea
                   v-model="bodyText"
                   spellcheck="false"
-                  class="min-h-28 resize-y rounded-lg border border-solid border-outline-variant/25 bg-surface px-3 py-2 font-mono text-xs text-on-surface outline-none focus:border-primary"
+                  class="min-h-32 resize-y rounded-lg border border-solid border-outline-variant/25 bg-surface px-3 py-2 font-mono text-xs text-on-surface outline-none focus:border-primary"
                 />
               </label>
+
+              <label v-else-if="hasBody && bodyType === 'text'" class="flex flex-col gap-1">
+                <span class="text-[11px] text-on-surface-variant/60">Text body</span>
+                <textarea
+                  v-model="bodyText"
+                  spellcheck="false"
+                  class="min-h-32 resize-y rounded-lg border border-solid border-outline-variant/25 bg-surface px-3 py-2 font-mono text-xs text-on-surface outline-none focus:border-primary"
+                />
+              </label>
+
+              <div v-else-if="hasBody" class="flex min-h-32 flex-col gap-2">
+                <label class="flex flex-col gap-1">
+                  <span class="text-[11px] text-on-surface-variant/60">Multipart fields JSON</span>
+                  <textarea
+                    v-model="multipartFieldsText"
+                    spellcheck="false"
+                    class="min-h-20 resize-y rounded-lg border border-solid border-outline-variant/25 bg-surface px-3 py-2 font-mono text-xs text-on-surface outline-none focus:border-primary"
+                  />
+                </label>
+                <div class="grid grid-cols-[120px_minmax(0,1fr)] gap-2">
+                  <input
+                    v-model="multipartFileField"
+                    class="h-9 rounded-lg border border-solid border-outline-variant/25 bg-surface px-3 font-mono text-xs text-on-surface outline-none focus:border-primary"
+                    placeholder="file 字段名"
+                  />
+                  <input
+                    type="file"
+                    multiple
+                    class="h-9 min-w-0 rounded-lg border border-solid border-outline-variant/25 bg-surface px-2 py-1 text-xs text-on-surface file:mr-2 file:border-none file:rounded-md file:bg-primary/12 file:px-2 file:py-1 file:text-primary"
+                    @change="onFilesSelected"
+                  />
+                </div>
+                <div class="flex min-h-5 items-center gap-2 text-[11px] text-on-surface-variant/55">
+                  <span>
+                    {{ selectedFiles.length > 0 ? `已选择 ${selectedFiles.length} 个文件` : '未选择文件' }}
+                  </span>
+                  <button
+                    v-if="selectedFiles.length > 0"
+                    class="border-none bg-transparent p-0 text-primary cursor-pointer"
+                    @click="clearFiles"
+                  >
+                    清除
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div class="flex items-center justify-between gap-3">
               <div class="text-xs text-on-surface-variant/55">
                 <span v-if="destructive" class="text-amber-500">该方法可能修改或删除远端数据。</span>
+                <span v-else-if="bodyType === 'multipart' && hasBody">
+                  文件只在发送时读入内存，不写入请求历史。
+                </span>
                 <span v-else>未知字段会被 TuneWeave 严格拒绝，请按端点文档填写。</span>
               </div>
               <SButton type="primary" :loading="sending" @click="sendRequest">
