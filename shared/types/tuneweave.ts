@@ -150,21 +150,30 @@ export interface TuneWeaveMediaStream {
   [key: string]: unknown;
 }
 
+export interface TuneWeaveRedactedCredential {
+  format?: string;
+  platform?: string;
+  expires_at?: string | null;
+  /** 主进程是否已截获并保存 bearer secret。 */
+  stored?: boolean;
+  [key: string]: unknown;
+}
+
 export interface TuneWeaveQrTransaction {
   transaction_id: string;
   status?: "waiting" | "scanned" | "confirmed" | "expired" | "failed" | string;
   qr_content?: string | null;
   qr_url?: string | null;
   expires_at?: string | number | null;
-  caller_credential?: { value?: string; platform?: string; expires_at?: string | null } | null;
+  /** bearer value 已在主进程移除，渲染层只能看到非敏感元数据。 */
+  caller_credential?: TuneWeaveRedactedCredential | null;
   profile?: Record<string, unknown> | null;
   [key: string]: unknown;
 }
 
-/** 主进程内存中的连接配置。凭证不会写入常规设置文件。 */
+/** 主进程内存中的非敏感连接配置。 */
 export interface TuneWeaveRuntimeConfig {
   baseUrl?: string;
-  credentials?: string[];
 }
 
 export interface TuneWeaveRuntimeStatus {
