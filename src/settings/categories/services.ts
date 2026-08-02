@@ -5,6 +5,7 @@ import i18n from "@/i18n";
 import ExternalApiStatusCard from "@/components/settings/custom/ExternalApiStatusCard.vue";
 import LastfmPanel from "@/components/settings/custom/LastfmPanel.vue";
 import TuneWeavePanel from "@/components/settings/custom/TuneWeavePanel.vue";
+import TuneWeaveCredentialLoginPanel from "@/components/settings/custom/TuneWeaveCredentialLoginPanel.vue";
 import IconLucideGlobe from "~icons/lucide/globe";
 
 const servicesCategory: SettingCategory = {
@@ -18,6 +19,13 @@ const servicesCategory: SettingCategory = {
           key: "tuneweavePanel",
           type: "custom",
           component: TuneWeavePanel,
+          fullWidth: true,
+          searchable: false,
+        },
+        {
+          key: "tuneweaveCredentialLoginPanel",
+          type: "custom",
+          component: TuneWeaveCredentialLoginPanel,
           fullWidth: true,
           searchable: false,
         },
