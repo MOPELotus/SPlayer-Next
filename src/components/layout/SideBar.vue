@@ -16,6 +16,7 @@ import IconLucideDisc3 from "~icons/lucide/disc-3";
 import IconLucideFolder from "~icons/lucide/folder";
 import IconLucideServer from "~icons/lucide/server";
 import IconLucideListMusic from "~icons/lucide/list-music";
+import IconLucideLayers3 from "~icons/lucide/layers-3";
 import IconMaterialSymbolsFavoriteOutline from "~icons/material-symbols/favorite-outline-rounded";
 import IconLucideStar from "~icons/lucide/star";
 import IconLucideHistory from "~icons/lucide/history";
@@ -168,6 +169,7 @@ const menuItems = computed<SMenuItem[]>(() => [
   },
   { key: "/favorites", label: t("nav.favorites"), icon: markRaw(IconLucideStar) },
   { key: "/cloud", label: t("nav.cloud"), icon: markRaw(IconLucideCloud) },
+  { key: "/uni-playlists", label: "Uni Playlist", icon: markRaw(IconLucideLayers3) },
   ...(systemSettings.download.enabled
     ? ([
         {
