@@ -13,6 +13,7 @@ import {
   setTuneWeavePreferences,
   type TuneWeaveCredentialMode,
 } from "@/services/tuneweave";
+import TuneWeaveAccountPanel from "./TuneWeaveAccountPanel.vue";
 import { toast } from "@/composables/useToast";
 
 defineOptions({ inheritAttrs: false });
@@ -24,8 +25,8 @@ const credentialCount = ref(0);
 
 const qrOpen = ref(false);
 const qrLoading = ref(false);
-const qrPlatform = ref("qq");
-const qrLoginType = ref("qq_music");
+const qrPlatform = ref(form.accountPlatform || "qq");
+const qrLoginType = ref(qrPlatform.value === "qq" ? "qq_music" : "");
 const qrMode = ref<TuneWeaveCredentialMode>(form.credentialMode);
 const qrTransactionId = ref("");
 const qrStatus = ref("idle");
@@ -90,6 +91,7 @@ const persist = async (): Promise<void> => {
   const next = setTuneWeavePreferences({
     enabled: form.enabled,
     baseUrl: form.baseUrl,
+    accountPlatform: form.accountPlatform,
     account: form.account,
     credentialMode: form.credentialMode,
     fallbackToBuiltIn: form.fallbackToBuiltIn,
@@ -120,6 +122,7 @@ const testConnection = async (): Promise<void> => {
 const clearCredentials = async (): Promise<void> => {
   await clearTuneWeaveCredentials();
   await refreshStatus();
+  window.dispatchEvent(new Event("tuneweave:account-changed"));
   toast.success("已清除本次应用会话中的 TuneWeave 调用方凭证");
 };
 
@@ -132,6 +135,7 @@ const applyQrResult = async (transaction: TuneWeaveQrTransaction): Promise<void>
     qrMessage.value = credentialWasStored(transaction)
       ? "登录成功，调用方凭证已由主进程安全保存在内存中"
       : "登录成功，登录态已由 TuneWeave 服务器托管";
+    window.dispatchEvent(new Event("tuneweave:account-changed"));
     toast.success("TuneWeave 登录成功");
   } else if (qrStatus.value === "scanned") {
     qrMessage.value = "已扫码，请在手机上确认";
@@ -197,6 +201,8 @@ const startQr = async (): Promise<void> => {
 };
 
 const openQr = (): void => {
+  qrPlatform.value = form.accountPlatform;
+  qrLoginType.value = qrPlatform.value === "qq" ? "qq_music" : "";
   qrMode.value = form.credentialMode;
   qrOpen.value = true;
 };
@@ -227,7 +233,7 @@ onScopeDispose(pausePolling);
         <div class="min-w-0">
           <div class="text-sm font-semibold text-on-surface">TuneWeave 原生后端</div>
           <div class="text-xs text-on-surface-variant/60 mt-0.5">
-            搜索、播放、下载与歌词优先经 TuneWeave；调用方凭证仅驻留主进程内存
+            搜索、播放、下载、推荐与歌词优先经 TuneWeave；调用方凭证仅驻留主进程内存
           </div>
         </div>
         <SSwitch v-model="form.enabled" @update:model-value="persist" />
@@ -243,7 +249,23 @@ onScopeDispose(pausePolling);
         />
       </label>
 
-      <div class="grid grid-cols-2 gap-3">
+      <div class="grid grid-cols-3 gap-3">
+        <label class="flex flex-col gap-1.5">
+          <span class="text-xs text-on-surface-variant">账户平台</span>
+          <select
+            v-model="form.accountPlatform"
+            class="h-9 rounded-lg border border-solid border-outline-variant/30 bg-surface px-3 text-sm text-on-surface outline-none focus:border-primary"
+            @change="persist"
+          >
+            <option value="netease">网易云音乐</option>
+            <option value="qq">QQ 音乐</option>
+            <option value="kugou">酷狗音乐</option>
+            <option value="bilibili">哔哩哔哩</option>
+            <option value="migu">咪咕音乐</option>
+            <option value="kuwo">酷我音乐</option>
+            <option value="soda">汽水音乐</option>
+          </select>
+        </label>
         <label class="flex flex-col gap-1.5">
           <span class="text-xs text-on-surface-variant">服务器账户别名</span>
           <input
@@ -293,6 +315,8 @@ onScopeDispose(pausePolling);
       </div>
     </div>
 
+    <TuneWeaveAccountPanel />
+
     <SDialog v-model:open="qrOpen" title="TuneWeave 二维码登录" width="420px">
       <div class="flex flex-col gap-3">
         <div class="grid grid-cols-2 gap-3">
@@ -306,6 +330,9 @@ onScopeDispose(pausePolling);
               <option value="netease">网易云音乐</option>
               <option value="bilibili">哔哩哔哩</option>
               <option value="kugou">酷狗音乐</option>
+              <option value="migu">咪咕音乐</option>
+              <option value="kuwo">酷我音乐</option>
+              <option value="soda">汽水音乐</option>
             </select>
           </label>
           <label class="flex flex-col gap-1.5">
@@ -313,7 +340,7 @@ onScopeDispose(pausePolling);
             <input
               v-model="qrLoginType"
               class="h-9 rounded-lg border border-solid border-outline-variant/30 bg-surface px-3 text-sm text-on-surface"
-              placeholder="qq_music"
+              placeholder="平台可选登录类型"
             />
           </label>
         </div>
