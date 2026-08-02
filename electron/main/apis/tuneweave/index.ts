@@ -81,10 +81,15 @@ export function buildTuneWeaveUrl(
   return url;
 }
 
+interface RuntimeCredential {
+  value: string;
+  platform?: string;
+}
+
 let runtimeBaseUrl = normalizeTuneWeaveBaseUrl(
   process.env.TUNEWEAVE_API_BASE?.trim() || DEFAULT_BASE_URL,
 );
-let runtimeCredentials: string[] = [];
+let runtimeCredentials: RuntimeCredential[] = [];
 
 interface MediaTicket {
   stream: TuneWeaveMediaStream;
@@ -119,6 +124,69 @@ const parseResponseBody = async (
   return text;
 };
 
+const storeCallerCredential = (credential: unknown): boolean => {
+  const record =
+    credential && typeof credential === "object"
+      ? (credential as Record<string, unknown>)
+      : null;
+  const value =
+    typeof credential === "string"
+      ? credential.trim()
+      : typeof record?.value === "string"
+        ? record.value.trim()
+        : "";
+  if (!value || value.length > 8192) return false;
+  const platform = typeof record?.platform === "string" ? record.platform : undefined;
+
+  const duplicate = runtimeCredentials.find((item) => item.value === value);
+  if (duplicate) return true;
+  if (platform) {
+    runtimeCredentials = runtimeCredentials.filter((item) => item.platform !== platform);
+  }
+  if (runtimeCredentials.length >= MAX_CREDENTIALS) return false;
+  runtimeCredentials.push({ value, platform });
+  return true;
+};
+
+/**
+ * caller_credential 的 secret 在主进程截获，渲染进程只收到非敏感元数据。
+ * 该函数同时递归处理统一包络中的 data 字段。
+ */
+export const sanitizeTuneWeaveResponse = (
+  value: unknown,
+  captureCredentials = true,
+): unknown => {
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeTuneWeaveResponse(item, captureCredentials));
+  }
+  if (!value || typeof value !== "object") return value;
+
+  const output: Record<string, unknown> = {};
+  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+    if (key !== "caller_credential" || child === null || child === undefined) {
+      output[key] = sanitizeTuneWeaveResponse(child, captureCredentials);
+      continue;
+    }
+
+    const stored = captureCredentials ? storeCallerCredential(child) : false;
+    if (typeof child === "string") {
+      output[key] = { stored };
+      continue;
+    }
+    if (typeof child === "object") {
+      const metadata = { ...(child as Record<string, unknown>) };
+      delete metadata.value;
+      output[key] = {
+        ...sanitizeTuneWeaveResponse(metadata, captureCredentials),
+        stored,
+      };
+      continue;
+    }
+    output[key] = { stored: false };
+  }
+  return output;
+};
+
 export const requestTuneWeave = async (input: TuneWeaveRequest): Promise<unknown> => {
   const method = input.method ?? "GET";
   const url = buildTuneWeaveUrl(runtimeBaseUrl, input.path, input.query);
@@ -132,7 +200,7 @@ export const requestTuneWeave = async (input: TuneWeaveRequest): Promise<unknown
 
   if (input.includeCredentials !== false) {
     for (const credential of runtimeCredentials) {
-      appendHeader(headers, "X-TuneWeave-Credential", credential);
+      appendHeader(headers, "X-TuneWeave-Credential", credential.value);
     }
   }
 
@@ -160,16 +228,17 @@ export const requestTuneWeave = async (input: TuneWeaveRequest): Promise<unknown
 
   const responseBody = await parseResponseBody(response);
   if (response.statusCode < 200 || response.statusCode >= 300) {
+    const safeBody = sanitizeTuneWeaveResponse(responseBody, false);
     const message =
-      responseBody && typeof responseBody === "object" && "error" in responseBody
+      safeBody && typeof safeBody === "object" && "error" in safeBody
         ? String(
-            (responseBody as { error?: { message?: unknown } }).error?.message ??
+            (safeBody as { error?: { message?: unknown } }).error?.message ??
               `TuneWeave request failed with HTTP ${response.statusCode}`,
           )
         : `TuneWeave request failed with HTTP ${response.statusCode}`;
-    throw new TuneWeaveRequestError(message, response.statusCode, responseBody);
+    throw new TuneWeaveRequestError(message, response.statusCode, safeBody);
   }
-  return responseBody;
+  return sanitizeTuneWeaveResponse(responseBody, true);
 };
 
 const parseMediaExpiry = (value: TuneWeaveMediaStream["expires_at"]): number => {
@@ -253,7 +322,8 @@ const handleMediaRequest = async (
     upstream.body.on("error", () => {
       if (!response.destroyed) response.destroy();
     });
-    request.on("close", () => upstream.body.destroy());
+    request.once("aborted", () => upstream.body.destroy());
+    response.once("close", () => upstream.body.destroy());
     upstream.body.pipe(response);
   } catch {
     if (!response.headersSent) response.writeHead(502);
@@ -307,7 +377,7 @@ export const registerTuneWeaveMedia = async (
 export const configureTuneWeave = (config: TuneWeaveRuntimeConfig): TuneWeaveRuntimeStatus => {
   if (config.baseUrl !== undefined) runtimeBaseUrl = normalizeTuneWeaveBaseUrl(config.baseUrl);
   if (config.credentials !== undefined) {
-    runtimeCredentials = sanitizeTuneWeaveCredentials(config.credentials);
+    runtimeCredentials = sanitizeTuneWeaveCredentials(config.credentials).map((value) => ({ value }));
   }
   return getTuneWeaveStatus();
 };
