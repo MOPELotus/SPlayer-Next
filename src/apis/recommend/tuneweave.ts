@@ -5,7 +5,7 @@ import type { TuneWeavePlaylist, TuneWeaveTrack } from "@shared/types/tuneweave"
 import { tuneweaveRequest } from "@/apis/tuneweave";
 import {
   ensureTuneWeaveConfigured,
-  tuneWeaveAccountQuery,
+  tuneWeaveSelectedAccountQuery,
 } from "@/services/tuneweave";
 import {
   extractTuneWeaveResources,
@@ -26,7 +26,7 @@ const recommendationRequest = async <T>(
     path,
     query: {
       limit,
-      ...tuneWeaveAccountQuery(preferences),
+      ...tuneWeaveSelectedAccountQuery(preferences),
     },
   });
   if (!envelope.ok) throw new Error(envelope.error.message);
