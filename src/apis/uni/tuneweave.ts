@@ -2,10 +2,6 @@ import type { Track } from "@shared/types/player";
 import type { Platform } from "@shared/types/platform";
 import { tuneweaveData } from "@/apis/tuneweave";
 import {
-  ensureTuneWeaveConfigured,
-  tuneWeaveAccountQuery,
-} from "@/services/tuneweave";
-import {
   fromTuneWeavePlatform,
   tuneWeaveRefId,
   tuneWeaveTrackToTrack,
@@ -114,15 +110,10 @@ const normalizeItem = (value: unknown): TuneWeaveUniItem | null => {
   };
 };
 
-const uniQuery = async (): Promise<{ account?: string }> => {
-  const preferences = await ensureTuneWeaveConfigured();
-  return tuneWeaveAccountQuery(preferences);
-};
-
 export const listTuneWeaveUniPlaylists = async (limit = 100): Promise<TuneWeaveUniPlaylist[]> => {
   const data = await tuneweaveData<unknown>({
     path: "/v1/uni/playlists",
-    query: { limit, ...(await uniQuery()) },
+    query: { limit },
   });
   return arraysFrom(data, ["items", "playlists", "results"])
     .map(normalizePlaylist)
