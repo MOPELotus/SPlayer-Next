@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
-import { request as undiciRequest, type Dispatcher } from "undici";
+import { Agent, interceptors, request as undiciRequest, type Dispatcher } from "undici";
 import type {
   TuneWeaveMediaRegistration,
   TuneWeaveMediaStream,
@@ -17,6 +17,18 @@ const MAX_CREDENTIALS = 8;
 const DEFAULT_MEDIA_TTL_MS = 15 * 60 * 1000;
 const MEDIA_PATH_PREFIX = "/tuneweave-media/";
 
+const redirectDispatcher = new Agent().compose(
+  interceptors.redirect({
+    maxRedirections: 5,
+    throwOnMaxRedirect: true,
+    stripHeadersOnCrossOriginRedirect: [
+      "authorization",
+      "cookie",
+      "proxy-authorization",
+      "x-tuneweave-credential",
+    ],
+  }),
+);
 export class TuneWeaveRequestError extends Error {
   readonly status?: number;
   readonly body?: unknown;
@@ -196,7 +208,7 @@ export const requestTuneWeave = async (input: TuneWeaveRequest): Promise<unknown
       method: method as Dispatcher.HttpMethod,
       headers,
       body,
-      maxRedirections: 5,
+      dispatcher: redirectDispatcher,
       headersTimeout: 30_000,
       bodyTimeout: 60_000,
     });
@@ -300,7 +312,7 @@ const handleMediaRequest = async (
     const upstream = await undiciRequest(ticket.stream.url, {
       method: request.method as Dispatcher.HttpMethod,
       headers,
-      maxRedirections: 5,
+      dispatcher: redirectDispatcher,
       headersTimeout: 30_000,
       bodyTimeout: 0,
     });
