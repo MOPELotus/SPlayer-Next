@@ -10,13 +10,48 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: tuneweave-adapter-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  format:
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/agent/tuneweave-native-provider' &&
+      github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/tuneweave-native-provider
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Format adapter changes
+        run: pnpm prettier --write .
+
+      - name: Commit formatting
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "style: format TuneWeave adapter"
+          git push origin HEAD:agent/tuneweave-native-provider
+
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 30
