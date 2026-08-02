@@ -57,8 +57,8 @@ export const registerApisIpc = (): void => {
         const result = await dispatch(platform, name, params ?? {});
         return { ok: true, ...result };
       } catch (err) {
-        coreLog.warn(`[apis] ${platform}.${name} failed:`, err);
         if (platform === "netease" && err instanceof NeteaseRequestError) {
+          coreLog.warn(`[apis] ${platform}.${name} failed: ${err.message}`);
           return {
             ok: false,
             error: err.message,
@@ -67,6 +67,8 @@ export const registerApisIpc = (): void => {
           };
         }
         if (platform === "tuneweave" && err instanceof TuneWeaveRequestError) {
+          // 不将认证事务、凭证或平台响应体写入日志。
+          coreLog.warn(`[apis] ${platform}.${name} failed: ${err.message}`);
           return {
             ok: false,
             error: err.message,
@@ -74,6 +76,7 @@ export const registerApisIpc = (): void => {
             body: err.body,
           };
         }
+        coreLog.warn(`[apis] ${platform}.${name} failed:`, err);
         return { ok: false, error: err instanceof Error ? err.message : String(err) };
       }
     },
