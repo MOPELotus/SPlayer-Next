@@ -379,9 +379,6 @@ export const registerTuneWeaveMedia = async (
 
 export const configureTuneWeave = (config: TuneWeaveRuntimeConfig): TuneWeaveRuntimeStatus => {
   if (config.baseUrl !== undefined) runtimeBaseUrl = normalizeTuneWeaveBaseUrl(config.baseUrl);
-  if (config.credentials !== undefined) {
-    runtimeCredentials = sanitizeTuneWeaveCredentials(config.credentials).map((value) => ({ value }));
-  }
   return getTuneWeaveStatus();
 };
 
