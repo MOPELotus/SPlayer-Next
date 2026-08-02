@@ -176,8 +176,11 @@ export const sanitizeTuneWeaveResponse = (
     if (typeof child === "object") {
       const metadata = { ...(child as Record<string, unknown>) };
       delete metadata.value;
+      const sanitizedMetadata = sanitizeTuneWeaveResponse(metadata, captureCredentials);
       output[key] = {
-        ...sanitizeTuneWeaveResponse(metadata, captureCredentials),
+        ...(sanitizedMetadata && typeof sanitizedMetadata === "object"
+          ? (sanitizedMetadata as Record<string, unknown>)
+          : {}),
         stored,
       };
       continue;
