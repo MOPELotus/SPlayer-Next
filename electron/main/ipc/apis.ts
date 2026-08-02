@@ -21,6 +21,28 @@ import { openNeteaseLoginWindow } from "@main/window/login";
 import { coreLog } from "@main/utils/logger";
 import type { ApiPlatform } from "@shared/types/apis";
 
+const FORBIDDEN_TUNEWEAVE_RENDERER_HEADERS = new Set([
+  "authorization",
+  "connection",
+  "content-length",
+  "cookie",
+  "host",
+  "proxy-authorization",
+  "transfer-encoding",
+  "x-tuneweave-credential",
+]);
+
+const validateTuneWeaveCall = (name: string, params: Record<string, unknown>): void => {
+  if (name !== "request") return;
+  const headers = params.headers;
+  if (!headers || typeof headers !== "object" || Array.isArray(headers)) return;
+  for (const key of Object.keys(headers as Record<string, unknown>)) {
+    if (FORBIDDEN_TUNEWEAVE_RENDERER_HEADERS.has(key.toLowerCase())) {
+      throw new Error(`renderer cannot set protected TuneWeave header: ${key}`);
+    }
+  }
+};
+
 /** 各平台的调用器：统一返回 `{ status?, body?, data? }` 由前端按需取 */
 const dispatch = async (
   platform: ApiPlatform,
@@ -41,6 +63,7 @@ const dispatch = async (
       return { data };
     }
     case "tuneweave": {
+      validateTuneWeaveCall(name, params);
       const data = await callTuneWeave(name, params);
       return { data };
     }
