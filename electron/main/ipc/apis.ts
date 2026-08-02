@@ -12,6 +12,11 @@ import { NeteaseRequestError } from "@main/apis/netease/core/request";
 import { cookieToJson } from "@main/apis/netease/core/cookie";
 import { callQQMusic } from "@main/apis/qqmusic";
 import { callKugou } from "@main/apis/kugou";
+import {
+  callTuneWeave,
+  clearTuneWeaveCredentials,
+  TuneWeaveRequestError,
+} from "@main/apis/tuneweave";
 import { openNeteaseLoginWindow } from "@main/window/login";
 import { coreLog } from "@main/utils/logger";
 import type { ApiPlatform } from "@shared/types/apis";
@@ -33,6 +38,10 @@ const dispatch = async (
     }
     case "kugou": {
       const data = await callKugou(name, params);
+      return { data };
+    }
+    case "tuneweave": {
+      const data = await callTuneWeave(name, params);
       return { data };
     }
     default:
@@ -57,6 +66,14 @@ export const registerApisIpc = (): void => {
             body: err.response.body,
           };
         }
+        if (platform === "tuneweave" && err instanceof TuneWeaveRequestError) {
+          return {
+            ok: false,
+            error: err.message,
+            status: err.status,
+            body: err.body,
+          };
+        }
         return { ok: false, error: err instanceof Error ? err.message : String(err) };
       }
     },
@@ -64,6 +81,7 @@ export const registerApisIpc = (): void => {
 
   ipcMain.handle("apis:clearSession", (_evt, platform: ApiPlatform) => {
     if (platform === "netease") clearNeteaseCookies();
+    if (platform === "tuneweave") clearTuneWeaveCredentials();
   });
 
   // 打开 NCM 官方网页登录，成功后把 cookies 合并写入 session
