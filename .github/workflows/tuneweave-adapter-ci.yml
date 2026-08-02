@@ -10,97 +10,13 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: tuneweave-adapter-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  format:
-    if: >-
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/agent/tuneweave-native-provider' &&
-      github.actor != 'github-actions[bot]'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: agent/tuneweave-native-provider
-
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Apply Undici 8 redirect compatibility
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path("electron/main/apis/tuneweave/index.ts")
-          text = path.read_text(encoding="utf-8")
-          old_import = 'import { request as undiciRequest, type Dispatcher } from "undici";'
-          new_import = '''import {
-            Agent,
-            interceptors,
-            request as undiciRequest,
-            type Dispatcher,
-          } from "undici";'''
-          if old_import in text:
-              text = text.replace(old_import, new_import, 1)
-
-          marker = 'const MEDIA_PATH_PREFIX = "/tuneweave-media/";\n'
-          dispatcher = '''
-
-          const redirectDispatcher = new Agent().compose(
-            interceptors.redirect({
-              maxRedirections: 5,
-              throwOnMaxRedirect: true,
-              stripHeadersOnCrossOriginRedirect: [
-                "authorization",
-                "cookie",
-                "proxy-authorization",
-                "x-tuneweave-credential",
-              ],
-            }),
-          );'''
-          if "const redirectDispatcher =" not in text:
-              if marker not in text:
-                  raise SystemExit("TuneWeave media path marker not found")
-              text = text.replace(marker, marker + dispatcher, 1)
-
-          count = text.count("      maxRedirections: 5,\n")
-          if count:
-              text = text.replace(
-                  "      maxRedirections: 5,\n",
-                  "      dispatcher: redirectDispatcher,\n",
-              )
-          if count not in (0, 2):
-              raise SystemExit(f"unexpected maxRedirections occurrence count: {count}")
-
-          path.write_text(text, encoding="utf-8")
-          PY
-
-      - name: Format adapter changes
-        run: pnpm prettier --write .
-
-      - name: Commit compatibility and formatting
-        run: |
-          if git diff --quiet; then
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "fix: support Undici 8 redirect interceptors"
-          git push origin HEAD:agent/tuneweave-native-provider
-
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 30
