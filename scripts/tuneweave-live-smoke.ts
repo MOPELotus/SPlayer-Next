@@ -44,7 +44,10 @@ const main = async (): Promise<void> => {
     });
     assertSuccessEnvelope(cloud, "cloud track list");
   } catch (error) {
-    assert.ok(error instanceof TuneWeaveRequestError, "cloud request failed outside transport layer");
+    assert.ok(
+      error instanceof TuneWeaveRequestError,
+      "cloud request failed outside transport layer",
+    );
     assert.ok(
       typeof error.status === "number" && error.status >= 400 && error.status < 500,
       `cloud endpoint returned unexpected HTTP status ${String(error.status)}`,

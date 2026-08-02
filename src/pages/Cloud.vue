@@ -49,9 +49,7 @@ const activeLoading = computed(() =>
 const activeAvailable = computed(() =>
   cloudSource.value === "tuneweave" ? true : user.isLoggedIn,
 );
-const activeError = computed(() =>
-  cloudSource.value === "tuneweave" ? tuneweaveError.value : "",
-);
+const activeError = computed(() => (cloudSource.value === "tuneweave" ? tuneweaveError.value : ""));
 
 /** 已用容量百分比 */
 const usagePercent = computed(() => {
@@ -216,10 +214,7 @@ onScopeDispose(() => {
               </SButton>
             </template>
           </SDropdownMenu>
-          <span
-            v-if="cloudSource === 'tuneweave'"
-            class="text-xs text-on-surface-variant/55"
-          >
+          <span v-if="cloudSource === 'tuneweave'" class="text-xs text-on-surface-variant/55">
             Beta 暂提供读取与播放；上传、删除待真实账户流程验证后开放
           </span>
         </div>
