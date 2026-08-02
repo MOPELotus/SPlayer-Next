@@ -15,6 +15,8 @@ import {
   type TuneWeaveRouteDefinition,
 } from "@/data/tuneweave-routes";
 import { ensureTuneWeaveConfigured } from "@/services/tuneweave";
+import IconLucideDownload from "~icons/lucide/download";
+import IconLucideSend from "~icons/lucide/send";
 
 interface ConsoleHistoryEntry {
   id: string;
@@ -213,8 +215,8 @@ const formatResponse = (response: unknown): boolean => {
     );
     return true;
   }
-  responseText.value =
-    typeof response === "string" ? response : JSON.stringify(response, null, 2);
+  const serialized = JSON.stringify(response, null, 2);
+  responseText.value = typeof response === "string" ? response : (serialized ?? String(response));
   if (response && typeof response === "object" && "ok" in response) {
     return (response as { ok?: unknown }).ok === true;
   }
