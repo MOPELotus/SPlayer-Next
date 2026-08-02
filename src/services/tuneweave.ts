@@ -108,13 +108,13 @@ export const ensureTuneWeaveConfigured = async (): Promise<TuneWeavePreferences>
 };
 
 /**
- * client 模式只使用调用方凭证。server/both 会提交账户别名；both 模式下若目标平台
- * 已有调用方凭证，主进程会自动移除同平台 account，避免协议冲突。
+ * client/both 模式会附加调用方凭证，因此不能再提交显式 account。
+ * both 模式的服务器账户别名用于登录落库；当前业务请求优先使用调用方凭证。
  */
 export const tuneWeaveAccountQuery = (
   preferences: TuneWeavePreferences,
 ): { account?: string } =>
-  preferences.credentialMode === "client" ? {} : { account: preferences.account };
+  preferences.credentialMode === "server" ? { account: preferences.account } : {};
 
 export const tuneWeaveSelectedAccountQuery = (
   preferences: TuneWeavePreferences,
