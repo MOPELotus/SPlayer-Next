@@ -102,7 +102,7 @@ const servicesCategory: SettingCategory = {
               key: "discordShowWhenPaused",
               type: "switch",
               binding: { store: "settings", path: "system.media.discord.showWhenPaused" },
-              defaultValue: true,
+              defaultValue: false,
             },
             {
               key: "discordDisplayMode",
