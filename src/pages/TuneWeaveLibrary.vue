@@ -142,7 +142,9 @@ onScopeDispose(() => {
       <div class="mt-5 grid grid-cols-4 gap-3">
         <SCard v-for="stat in statCards" :key="stat.label" size="small" radius="lg">
           <div class="flex items-center gap-3">
-            <div class="flex size-9 items-center justify-center rounded-lg bg-primary/8 text-primary">
+            <div
+              class="flex size-9 items-center justify-center rounded-lg bg-primary/8 text-primary"
+            >
               <component :is="stat.icon" class="size-4.5" />
             </div>
             <div class="min-w-0">
@@ -161,7 +163,10 @@ onScopeDispose(() => {
       </div>
     </div>
 
-    <div v-if="loading && currentTracks.length === 0" class="flex flex-1 items-center justify-center">
+    <div
+      v-if="loading && currentTracks.length === 0"
+      class="flex flex-1 items-center justify-center"
+    >
       <div class="text-center text-on-surface-variant/60">
         <SLoading class="mx-auto mb-4 block text-4xl text-primary/70" />
         <div class="text-sm">正在读取 TuneWeave 账户资料…</div>

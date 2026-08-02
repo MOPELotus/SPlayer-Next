@@ -104,13 +104,9 @@ export const normalizeTuneWeaveCloud = (payload: unknown): TuneWeaveCloudItem[] 
       return {
         cloudRef,
         track,
-        ...(typeof raw.filename === "string" && raw.filename
-          ? { filename: raw.filename }
-          : {}),
+        ...(typeof raw.filename === "string" && raw.filename ? { filename: raw.filename } : {}),
         ...(typeof raw.file_size === "number" ? { fileSize: raw.file_size } : {}),
-        ...(typeof raw.file_type === "string" && raw.file_type
-          ? { fileType: raw.file_type }
-          : {}),
+        ...(typeof raw.file_type === "string" && raw.file_type ? { fileType: raw.file_type } : {}),
         ...(typeof raw.bitrate === "number" ? { bitrate: raw.bitrate } : {}),
         ...(typeof raw.added_at === "string" && raw.added_at ? { addedAt: raw.added_at } : {}),
         ...(typeof raw.matched_track_ref === "string" && raw.matched_track_ref
