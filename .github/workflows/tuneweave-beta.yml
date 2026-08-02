@@ -228,7 +228,3 @@ jobs:
             --prerelease \
             --notes "TuneWeave native backend beta. Includes unified search/playback/lyrics, login, Uni Playlist, account history/favorites, and TuneWeave cloud browsing/playback. Live smoke tests use TuneWeave v0.1.0-alpha.3; real account data still depends on the tester's configured platform account." \
             release-assets/*
-
-      - name: Publish successful run locator
-        shell: bash
-        run: git push origin "$GITHUB_SHA:refs/heads/tuneweave-beta-run-$GITHUB_RUN_ID" --force
