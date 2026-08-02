@@ -1,6 +1,6 @@
 import localforage from "localforage";
 import type { Track } from "@shared/types/player";
-import { fetchDailySongs } from "@/apis/recommend/netease";
+import { fetchDailySongs } from "@/apis/recommend";
 import { useUserStore } from "@/stores/user";
 
 const MAX_SEARCH_HISTORY = 20;
@@ -79,6 +79,7 @@ export const useDataStore = defineStore(
      * 缓存按 userId 分键（`daily-recommend-archive:${uid}`）
      * 新一天的数据会把旧数据沉淀进历史归档（IndexedDB 持久化，保留近 14 天）
      * 逻辑日以 6:00 为界，失败返回空数组。各处可直接调用，已就绪时即时返回
+     * TuneWeave 启用时优先调用统一推荐端点，并按设置回退原网易云接口。
      * @param force - 强制重新拉取并覆盖当天归档
      */
     const ensureDailyRecommend = async (force = false): Promise<Track[]> => {
