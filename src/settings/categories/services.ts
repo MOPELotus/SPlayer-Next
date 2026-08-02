@@ -12,8 +12,7 @@ const servicesCategory: SettingCategory = {
   icon: IconLucideGlobe,
   sections: [
     {
-      id: "tuneweave",
-      tag: { text: "Native" },
+      id: "network",
       items: [
         {
           key: "tuneweavePanel",
@@ -22,11 +21,6 @@ const servicesCategory: SettingCategory = {
           fullWidth: true,
           searchable: false,
         },
-      ],
-    },
-    {
-      id: "network",
-      items: [
         {
           key: "networkProxyProtocol",
           type: "select",
@@ -108,7 +102,7 @@ const servicesCategory: SettingCategory = {
               key: "discordShowWhenPaused",
               type: "switch",
               binding: { store: "settings", path: "system.media.discord.showWhenPaused" },
-              defaultValue: false,
+              defaultValue: true,
             },
             {
               key: "discordDisplayMode",
