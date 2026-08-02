@@ -101,8 +101,11 @@ export const ensureTuneWeaveConfigured = async (): Promise<TuneWeavePreferences>
   return preferences;
 };
 
-/** client 模式不能同时提交显式 account。 */
+/**
+ * client/both 模式会附加调用方凭证，因此不能再提交显式 account。
+ * both 模式的服务器账户别名只用于登录事务本身。
+ */
 export const tuneWeaveAccountQuery = (
   preferences: TuneWeavePreferences,
 ): { account?: string } =>
-  preferences.credentialMode === "client" ? {} : { account: preferences.account };
+  preferences.credentialMode === "server" ? { account: preferences.account } : {};
