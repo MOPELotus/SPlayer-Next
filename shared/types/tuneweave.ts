@@ -1,6 +1,21 @@
 export type TuneWeaveHttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD";
 
 export type TuneWeaveQueryValue = string | number | boolean | null | undefined;
+export type TuneWeaveBodyType = "json" | "text" | "multipart";
+
+export interface TuneWeaveMultipartFile {
+  /** multipart 字段名。 */
+  field: string;
+  fileName: string;
+  contentType?: string;
+  /** 文件内容通过结构化 IPC 传递，不允许渲染层提交任意本地路径。 */
+  bytes: Uint8Array;
+}
+
+export interface TuneWeaveMultipartBody {
+  fields?: Record<string, string | string[]>;
+  files?: TuneWeaveMultipartFile[];
+}
 
 /** 渲染进程提交给主进程的 TuneWeave HTTP 请求。 */
 export interface TuneWeaveRequest {
@@ -8,6 +23,7 @@ export interface TuneWeaveRequest {
   /** 只接受相对路径，例如 /v1/search 或 /healthz。 */
   path: string;
   query?: Record<string, TuneWeaveQueryValue | TuneWeaveQueryValue[]>;
+  bodyType?: TuneWeaveBodyType;
   body?: unknown;
   headers?: Record<string, string>;
   /** 是否附加当前调用方凭证，默认 true。 */
