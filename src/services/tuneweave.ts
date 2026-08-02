@@ -14,7 +14,6 @@ export interface TuneWeavePreferences {
 }
 
 const PREFERENCES_KEY = "splayer:tuneweave:preferences:v1";
-const CREDENTIALS_KEY = "splayer:tuneweave:credentials:v1";
 
 export const DEFAULT_TUNEWEAVE_PREFERENCES: TuneWeavePreferences = {
   enabled: true,
@@ -27,7 +26,7 @@ export const DEFAULT_TUNEWEAVE_PREFERENCES: TuneWeavePreferences = {
   fallbackPlatforms: [],
 };
 
-let configuredFingerprint = "";
+let configuredBaseUrl = "";
 
 const safeParseObject = (raw: string | null): Record<string, unknown> => {
   if (!raw) return {};
@@ -84,51 +83,20 @@ export const setTuneWeavePreferences = (
 ): TuneWeavePreferences => {
   const next = normalizePreferences({ ...getTuneWeavePreferences(), ...update });
   localStorage.setItem(PREFERENCES_KEY, JSON.stringify(next));
-  configuredFingerprint = "";
+  configuredBaseUrl = "";
   window.dispatchEvent(new CustomEvent("tuneweave:preferences-changed", { detail: next }));
   return next;
 };
 
-export const getTuneWeaveCredentials = (): string[] => {
-  if (typeof sessionStorage === "undefined") return [];
-  const raw = sessionStorage.getItem(CREDENTIALS_KEY);
-  if (!raw) return [];
-  try {
-    return normalizeStringArray(JSON.parse(raw));
-  } catch {
-    return [];
-  }
-};
-
-export const setTuneWeaveCredentials = (credentials: readonly string[]): string[] => {
-  const next = normalizeStringArray(credentials);
-  sessionStorage.setItem(CREDENTIALS_KEY, JSON.stringify(next));
-  configuredFingerprint = "";
-  return next;
-};
-
-export const addTuneWeaveCredential = (credential: string): string[] =>
-  setTuneWeaveCredentials([...getTuneWeaveCredentials(), credential]);
-
-export const removeTuneWeaveCredential = (credential: string): string[] =>
-  setTuneWeaveCredentials(getTuneWeaveCredentials().filter((item) => item !== credential));
-
-export const clearStoredTuneWeaveCredentials = (): void => {
-  sessionStorage.removeItem(CREDENTIALS_KEY);
-  configuredFingerprint = "";
-};
-
 /**
- * 将浏览器侧偏好同步到 Electron 主进程。
- * 凭证仅来自 sessionStorage，并且主进程只保存在内存中。
+ * 将非敏感偏好同步到 Electron 主进程。
+ * 调用方凭证由主进程在登录响应中自动截获，只保存在主进程内存。
  */
 export const ensureTuneWeaveConfigured = async (): Promise<TuneWeavePreferences> => {
   const preferences = getTuneWeavePreferences();
-  const credentials = getTuneWeaveCredentials();
-  const fingerprint = JSON.stringify([preferences.baseUrl, credentials]);
-  if (fingerprint !== configuredFingerprint) {
-    await configureTuneWeave({ baseUrl: preferences.baseUrl, credentials });
-    configuredFingerprint = fingerprint;
+  if (preferences.baseUrl !== configuredBaseUrl) {
+    await configureTuneWeave({ baseUrl: preferences.baseUrl });
+    configuredBaseUrl = preferences.baseUrl;
   }
   return preferences;
 };
