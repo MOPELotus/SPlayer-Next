@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Track } from "@shared/types/player";
 import * as player from "@/core/player";
 import {
   addTuneWeaveUniItems,
@@ -14,6 +15,15 @@ import {
 } from "@/apis/uni/tuneweave";
 import { toast } from "@/composables/useToast";
 import { useFloatingPlayerBar } from "@/composables/useFloatingPlayerBar";
+import IconLucideDownload from "~icons/lucide/download";
+import IconLucideListMusic from "~icons/lucide/list-music";
+import IconLucideListPlus from "~icons/lucide/list-plus";
+import IconLucideMusic2 from "~icons/lucide/music-2";
+import IconLucidePackageOpen from "~icons/lucide/package-open";
+import IconLucidePlay from "~icons/lucide/play";
+import IconLucidePlus from "~icons/lucide/plus";
+import IconLucideTrash2 from "~icons/lucide/trash-2";
+import IconLucideX from "~icons/lucide/x";
 
 const { isFloatingBar } = useFloatingPlayerBar();
 const loading = ref(false);
@@ -168,7 +178,7 @@ const playItem = async (item: TuneWeaveUniItem): Promise<void> => {
 const playAll = async (): Promise<void> => {
   const tracks = items.value
     .map(tuneWeaveUniItemToTrack)
-    .filter((track): track is NonNullable<typeof track> => track !== null);
+    .filter((track): track is Track => track !== null);
   if (tracks.length === 0) {
     toast.warning("当前歌单没有可播放曲目");
     return;
