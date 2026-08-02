@@ -13,6 +13,7 @@ import {
 } from "@/apis/account/tuneweave";
 import { getTuneWeavePreferences } from "@/services/tuneweave";
 import { toast } from "@/composables/useToast";
+import IconLucideUserRound from "~icons/lucide/user-round";
 
 defineOptions({ inheritAttrs: false });
 
