@@ -1,6 +1,6 @@
 import type { CoverItem } from "@/types/artist";
 import type { Platform } from "@shared/types/platform";
-import type { Track } from "@shared/types/player";
+import type { Track, TrackSource } from "@shared/types/player";
 import type {
   TuneWeaveAlbum,
   TuneWeaveArtist,
@@ -22,6 +22,9 @@ const TUNEWEAVE_TO_PLATFORM: Record<string, Platform> = {
   kugou: "kugou",
 };
 
+const isPlatform = (source: TrackSource): source is Platform =>
+  source === "netease" || source === "qqmusic" || source === "kugou";
+
 export const toTuneWeavePlatform = (platform: Platform): string =>
   PLATFORM_TO_TUNEWEAVE[platform];
 
@@ -38,7 +41,10 @@ export const tuneWeaveRefId = (ref: string | null | undefined): string | undefin
 
 export const canonicalTuneWeaveTrackRef = (track: Track): string => {
   if (track.extId?.includes(":")) return track.extId;
-  return `${toTuneWeavePlatform(track.source as Platform)}:${track.id}`;
+  if (!isPlatform(track.source)) {
+    throw new Error(`Track source cannot be represented by TuneWeave: ${track.source}`);
+  }
+  return `${toTuneWeavePlatform(track.source)}:${track.id}`;
 };
 
 const resourceType = (value: unknown): string | undefined =>
@@ -66,7 +72,15 @@ export const extractTuneWeaveResources = <T>(payload: unknown, expectedType: str
   if (Array.isArray(payload)) arrays.push(payload);
   if (payload && typeof payload === "object" && !Array.isArray(payload)) {
     const record = payload as Record<string, unknown>;
-    for (const key of ["items", "results", "resources", "tracks", "albums", "artists", "playlists"]) {
+    for (const key of [
+      "items",
+      "results",
+      "resources",
+      "tracks",
+      "albums",
+      "artists",
+      "playlists",
+    ]) {
       if (Array.isArray(record[key])) arrays.push(record[key] as unknown[]);
     }
     if (arrays.length === 0 && resourceType(payload) === expectedType) arrays.push([payload]);
@@ -75,7 +89,10 @@ export const extractTuneWeaveResources = <T>(payload: unknown, expectedType: str
   const result: T[] = [];
   for (const array of arrays) {
     for (const item of array) {
-      const unwrapped = unwrapTuneWeaveResource(item as T | TuneWeaveResource<T>, expectedType);
+      const unwrapped = unwrapTuneWeaveResource(
+        item as T | TuneWeaveResource<T>,
+        expectedType,
+      );
       if (unwrapped && typeof unwrapped === "object") result.push(unwrapped);
     }
   }
@@ -121,16 +138,18 @@ export const tuneWeaveTrackToTrack = (
 };
 
 export const tuneWeaveAlbumToCover = (album: TuneWeaveAlbum): CoverItem => ({
-  id: album.ref || album.id,
+  id: album.id || tuneWeaveRefId(album.ref) || album.ref,
   title: album.name || "未知专辑",
   cover: album.cover_url ?? undefined,
   subtitle:
-    album.artist ?? album.artists?.map((artist) => artist.name).filter(Boolean).join(" / ") ?? "",
+    album.artist ??
+    album.artists?.map((artist) => artist.name).filter(Boolean).join(" / ") ??
+    "",
   trackCount: Math.max(0, Number(album.track_count ?? 0)),
 });
 
 export const tuneWeaveArtistToCover = (artist: TuneWeaveArtist): CoverItem => ({
-  id: artist.ref || artist.id,
+  id: artist.id || tuneWeaveRefId(artist.ref) || artist.ref,
   title: artist.name || "未知歌手",
   cover: artist.avatar_url ?? undefined,
   subtitle: "",
@@ -138,7 +157,7 @@ export const tuneWeaveArtistToCover = (artist: TuneWeaveArtist): CoverItem => ({
 });
 
 export const tuneWeavePlaylistToCover = (playlist: TuneWeavePlaylist): CoverItem => ({
-  id: playlist.ref || playlist.id,
+  id: playlist.id || tuneWeaveRefId(playlist.ref) || playlist.ref,
   title: playlist.name || "未命名歌单",
   cover: playlist.cover_url ?? undefined,
   subtitle:
