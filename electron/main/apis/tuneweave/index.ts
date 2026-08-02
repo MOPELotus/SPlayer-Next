@@ -18,6 +18,10 @@ import {
   applyTuneWeaveBodyHeaders,
   encodeTuneWeaveRequestBody,
 } from "./body";
+import {
+  isTuneWeaveBinaryResponse,
+  parseTuneWeaveResponseBody,
+} from "./response";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:7832";
 const MAX_CREDENTIALS = 8;
@@ -109,22 +113,6 @@ const appendHeader = (headers: string[], name: string, value: string): void => {
   headers.push(name, value);
 };
 
-const parseResponseBody = async (
-  response: Awaited<ReturnType<typeof undiciRequest>>,
-): Promise<unknown> => {
-  const text = await response.body.text();
-  if (!text) return null;
-  const contentType = String(response.headers["content-type"] ?? "").toLowerCase();
-  if (contentType.includes("json")) {
-    try {
-      return JSON.parse(text);
-    } catch {
-      throw new TuneWeaveRequestError("TuneWeave returned invalid JSON", response.statusCode, text);
-    }
-  }
-  return text;
-};
-
 const storeCallerCredential = (credential: unknown): boolean => {
   const record =
     credential && typeof credential === "object"
@@ -157,6 +145,13 @@ export const sanitizeTuneWeaveResponse = (
   value: unknown,
   captureCredentials = true,
 ): unknown => {
+  if (
+    isTuneWeaveBinaryResponse(value) ||
+    value instanceof ArrayBuffer ||
+    ArrayBuffer.isView(value)
+  ) {
+    return value;
+  }
   if (Array.isArray(value)) {
     return value.map((item) => sanitizeTuneWeaveResponse(item, captureCredentials));
   }
@@ -199,7 +194,7 @@ export const requestTuneWeave = async (input: TuneWeaveRequest): Promise<unknown
   for (const [name, value] of Object.entries(input.headers ?? {})) {
     appendHeader(headers, name, value);
   }
-  appendHeader(headers, "Accept", "application/json");
+  appendHeader(headers, "Accept", "application/json, text/plain, */*");
   appendHeader(headers, "X-Request-ID", `splayer-${randomBytes(12).toString("hex")}`);
 
   if (input.includeCredentials !== false) {
@@ -225,7 +220,19 @@ export const requestTuneWeave = async (input: TuneWeaveRequest): Promise<unknown
     throw new TuneWeaveRequestError(error instanceof Error ? error.message : String(error));
   }
 
-  const responseBody = await parseResponseBody(response);
+  let responseBody: unknown;
+  try {
+    responseBody = await parseTuneWeaveResponseBody(
+      response,
+      response.statusCode >= 400 ? "auto" : (input.responseType ?? "auto"),
+    );
+  } catch (error) {
+    throw new TuneWeaveRequestError(
+      error instanceof Error ? error.message : "TuneWeave response decoding failed",
+      response.statusCode,
+    );
+  }
+
   if (response.statusCode < 200 || response.statusCode >= 300) {
     const safeBody = sanitizeTuneWeaveResponse(responseBody, false);
     const message =
@@ -237,7 +244,9 @@ export const requestTuneWeave = async (input: TuneWeaveRequest): Promise<unknown
         : `TuneWeave request failed with HTTP ${response.statusCode}`;
     throw new TuneWeaveRequestError(message, response.statusCode, safeBody);
   }
-  return sanitizeTuneWeaveResponse(responseBody, true);
+  return isTuneWeaveBinaryResponse(responseBody)
+    ? responseBody
+    : sanitizeTuneWeaveResponse(responseBody, true);
 };
 
 const parseMediaExpiry = (value: TuneWeaveMediaStream["expires_at"]): number => {
