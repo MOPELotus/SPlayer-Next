@@ -47,7 +47,7 @@ export const resolveTuneWeaveUrl = async (
   return {
     url: local.url,
     expiresAt: local.expiresAt,
-    isTrial: stream.trial !== null && stream.trial !== undefined,
+    isTrial: stream.trial !== null && stream.trial !== undefined && stream.trial !== false,
     stream,
   };
 };
